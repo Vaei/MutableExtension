@@ -84,10 +84,14 @@ void AMyCharacter::OnMutableMeshesUpdated()
 	TArray<UCustomizableSkeletalComponent*> Components = GatherMutableMeshesToInitialize();
 	for (UCustomizableSkeletalComponent* Component : Components)
 	{
-		bool bValid;
-		ESkeletalMeshStatus Status = UMutableFunctionLib::GetMutableComponentStatus(Component, bValid);
-		ensure(bValid);
-		ensure(Status == ESkeletalMeshStatus::Success);
+		// We don't care if something we didn't assign an instance for failed
+		if (Component->CustomizableObjectInstance)
+		{
+			bool bValid;
+			ESkeletalMeshStatus Status = UMutableFunctionLib::GetMutableComponentStatus(Component, bValid);
+			ensure(bValid);
+			ensure(Status == ESkeletalMeshStatus::Success);
+		}
 	}
 }
 
