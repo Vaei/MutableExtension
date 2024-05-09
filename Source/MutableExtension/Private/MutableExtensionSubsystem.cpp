@@ -49,6 +49,8 @@ void UMutableExtensionSubsystem::OnMutableInstanceInitialized(UCustomizableObjec
 		InstancesPendingInitialization.Remove(Instance);
 	}
 
+	Instance->UpdatedDelegate.RemoveDynamic(this, &ThisClass::OnMutableInstanceInitialized);
+
 	if (InstancesPendingInitialization.Num() == 0)
 	{
 		CallOnAllInstancesInitialized();
