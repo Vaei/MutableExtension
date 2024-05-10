@@ -9,13 +9,24 @@
 
 class UCustomizableSkeletalComponent;
 
+
+/*
+ * Instead of:
+ 		FInstanceUpdateDelegate Delegate;
+		Delegate.BindDynamic(this, &ThisClass::OnMutableInstanceUpdated);
+		if (UMutableFunctionLib::UpdateMutableMesh_Callback(Component, Delegate, bIgnoreCloseDist, bForceHighPriority))
+ * You can do:
+		UPDATE_MUTABLE_MESH_CALLBACK(MutableMesh, &ThisClass::UpdateMutable, true, true)
+		if (bMutableResult) {}
+ */
+
 #define UPDATE_MUTABLE_MESH(MutableMesh, bIgnoreCloseDist, bForceHighPriority, ...) \
-UMutableFunctionLib::UpdateMutableMesh(MutableMesh, bIgnoreCloseDist, bForceHighPriority);
+const bool bMutableResult = UMutableFunctionLib::UpdateMutableMesh(MutableMesh, bIgnoreCloseDist, bForceHighPriority);
 
 #define UPDATE_MUTABLE_MESH_CALLBACK(MutableMesh, Func, bIgnoreCloseDist, bForceHighPriority, ...) \
 FInstanceUpdateDelegate Delegate; \
 Delegate.BindDynamic(this, Func); \
-UMutableFunctionLib::UpdateMutableMesh_Callback(MutableMesh, Delegate, bIgnoreCloseDist, bForceHighPriority);
+const bool bMutableResult = UMutableFunctionLib::UpdateMutableMesh_Callback(MutableMesh, Delegate, bIgnoreCloseDist, bForceHighPriority);
 
 /**
  * 

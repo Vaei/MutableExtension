@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Subsystems/WorldSubsystem.h"
-#include "MutableExtensionSubsystem.generated.h"
+#include "Components/ActorComponent.h"
+#include "MutableInitializationComponent.generated.h"
 
 struct FUpdateContext;
 class UCustomizableObjectInstance;
@@ -18,12 +18,18 @@ DECLARE_DYNAMIC_DELEGATE(FOnMutableExtensionSimpleDelegate);
  * initially spawned and wanting to ensure they all follow correct pathing (mutable init is a nightmare)
  */
 UCLASS()
-class MUTABLEEXTENSION_API UMutableExtensionSubsystem final : public UWorldSubsystem
+class MUTABLEEXTENSION_API UMutableInitializationComponent final : public UActorComponent
 {
 	GENERATED_BODY()
+
+public:
+	UMutableInitializationComponent();
 	
 public:
 	// Begin Initialization
+
+	UPROPERTY(Transient, DuplicateTransient)
+	bool bHasCompletedInitialization;
 
 	FOnMutableExtensionSimpleDelegate OnAllInstancesInitialized;
 	
@@ -44,6 +50,9 @@ public:
 public:
 	// Begin Update
 
+	UPROPERTY(Transient, DuplicateTransient)
+	bool bHasCompletedUpdate;
+
 	FOnMutableExtensionSimpleDelegate OnAllComponentsUpdated;
 	
 	UPROPERTY()
@@ -60,8 +69,11 @@ public:
 	// ~End Update
 	
 public:
-	// Begin UTickableWorldSubsystem
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
-	// ~End UTickableWorldSubsystem
+
+	// Begin Initialization - You probably don't need to use these
+	
+	void Initialize();
+	void Deinitialize();
+	
+	// ~End Initialization
 };

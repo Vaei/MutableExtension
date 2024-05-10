@@ -30,6 +30,10 @@ This has been pull requested to the engine here: TODO
 
 ## Setup
 
+### Add Component
+
+Add a `UMutableInitializationComponent` to your Character.
+
 ### Create Functions
 
 In your character header:
@@ -45,19 +49,15 @@ virtual void OnMutableMeshesUpdated();
 virtual TArray<UCustomizableSkeletalComponent*> GatherMutableMeshesToInitialize() const;
 ```
 
-This has not been tested from Begin Play.
+This has not been tested from `BeginPlay()`.
 
-Where your character is ready (generally they have a player controller, player state, and input is setup)
+Where your character is ready - generally they have a player controller, player state, and input is setup.
 
 You can call the following:
 
 ```cpp
-check(GetWorld());
-UMutableExtensionSubsystem* Mutable = GetWorld()->GetSubsystem<UMutableExtensionSubsystem>();
-check(Mutable);
-
-Mutable->OnAllInstancesInitialized.BindDynamic(this, &ThisClass::OnMutableMeshesGenerated);
-Mutable->InitializeMutableComponents(GatherMutableMeshesToInitialize());
+MutableInitialization->OnAllInstancesInitialized.BindDynamic(this, &ThisClass::OnMutableMeshesGenerated);
+MutableInitialization->InitializeMutableComponents(GatherMutableMeshesToInitialize());
 ```
 
 Implement the functions:
@@ -65,12 +65,8 @@ Implement the functions:
 ```cpp
 void AMyCharacter::OnMutableMeshesGenerated()
 {
-	check(GetWorld());
-	UMutableExtensionSubsystem* Mutable = GetWorld()->GetSubsystem<UMutableExtensionSubsystem>();
-	check(Mutable);
-	
-	Mutable->OnAllComponentsUpdated.BindDynamic(this, &ThisClass::OnMutableMeshesUpdated);
-	Mutable->UpdateMutableComponents(GatherMutableMeshesToInitialize(), true, true);
+	MutableInitialization->OnAllComponentsUpdated.BindDynamic(this, &ThisClass::OnMutableMeshesUpdated);
+	MutableInitialization->UpdateMutableComponents(GatherMutableMeshesToInitialize(), true, true);
 }
 
 void AMyCharacter::OnMutableMeshesUpdated()
@@ -103,6 +99,9 @@ TArray<UCustomizableSkeletalComponent*> AMyCharacter::GatherMutableMeshesToIniti
 
 
 ## Changelog
+
+### 1.1.0
+* Change to `UActorComponent` instead of Subsystem
 
 ### 1.0.0
 * Release
