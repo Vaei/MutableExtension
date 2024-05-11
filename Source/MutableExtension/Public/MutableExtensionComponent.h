@@ -1,8 +1,9 @@
-// Copyright (c) Jared Taylor. All Rights Reserved
+﻿// Copyright (c) Jared Taylor. All Rights Reserved
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MutableExtensionTypes.h"
 #include "Components/ActorComponent.h"
 #include "MutableExtensionComponent.generated.h"
 
@@ -11,7 +12,7 @@ class UCustomizableObjectInstance;
 class UCustomizableSkeletalComponent;
 
 DECLARE_DYNAMIC_DELEGATE(FOnMutableExtensionSimpleDelegate);
-DECLARE_DYNAMIC_DELEGATE_OneParam(FOnMutableExtensionUpdateDelegate, UCustomizableObjectInstance*, Instance);
+DECLARE_DYNAMIC_DELEGATE_OneParam(FOnMutableExtensionUpdateDelegate, const FMutablePendingRuntimeUpdate&, Updated);
 
 /**
  * Handler for initialization of Mutable components
@@ -76,6 +77,30 @@ public:
 	// ~End Initial Update
 
 public:
+	// Begin Runtime Update
+
+	FOnMutableExtensionUpdateDelegate OnComponentRuntimeUpdateCompleted;
+
+	UPROPERTY()
+	TMap<UCustomizableObjectInstance*, FMutablePendingRuntimeUpdate> InstancesPendingRuntimeUpdate;
+
+	/** @return True if update was requested (was not aborted) */
+	bool RuntimeUpdateMutableComponent(USkeletalMeshComponent* OwningComponent, UCustomizableSkeletalComponent* Component, EMutableExtensionRuntimeUpdateError& Error, bool bIgnoreCloseDist = false, bool bForceHighPriority = false);
+
+	bool IsPendingUpdate(const UCustomizableSkeletalComponent* Component) const;
+	bool IsPendingUpdate(const UCustomizableObjectInstance* Instance) const;
+
+	/** @return INCOMPLETE Pending Runtime Update if it exists, otherwise nullptr. */
+	const FMutablePendingRuntimeUpdate* GetIncompletePendingRuntimeUpdate(const UCustomizableSkeletalComponent* Component) const;
+	const FMutablePendingRuntimeUpdate* GetIncompletePendingRuntimeUpdate(const UCustomizableObjectInstance* Instance) const;
+	
+	UFUNCTION()
+	void OnMutableInstanceRuntimeUpdateCompleted(const FUpdateContext& Result);
+	
+	UFUNCTION()
+	void CallOnComponentRuntimeUpdateCompleted(const FMutablePendingRuntimeUpdate& PendingUpdate) const;
+
+	// ~End Runtime Update
 	
 public:
 

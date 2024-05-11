@@ -89,12 +89,22 @@ void UMutableExtensionComponent::InitialUpdateMutableComponents(TArray<UCustomiz
 	
 	for (UCustomizableSkeletalComponent* Component : Components)
 	{
+		if (!Component || !Component->CustomizableObjectInstance)
+		{
+			// IsMutableMeshValidToUpdate checks this, but we don't want to fail an ensure
+			// unless SkeletalMeshStatus did not succeed (generation failed or has not yet completed)
+			continue;
+		}
+		
+		if (!ensure(UMutableFunctionLib::IsMutableMeshValidToUpdate(Component)))
+		{
+			continue;
+		}
+		
 		FInstanceUpdateDelegate Delegate;
 		Delegate.BindDynamic(this, &ThisClass::OnMutableInstanceInitialUpdateCompleted);
-		if (UMutableFunctionLib::UpdateMutableMesh_Callback(Component, Delegate, bIgnoreCloseDist, bForceHighPriority))
-		{
-			InstancesPendingInitialUpdate.AddUnique(Component->CustomizableObjectInstance);
-		}
+		UMutableFunctionLib::UpdateMutableMesh_Callback(Component, Delegate, bIgnoreCloseDist, bForceHighPriority);
+		InstancesPendingInitialUpdate.AddUnique(Component->CustomizableObjectInstance);
 	}
 
 	if (InstancesPendingInitialUpdate.Num() == 0)
@@ -130,14 +140,103 @@ void UMutableExtensionComponent::CallOnAllComponentsInitialUpdated()
 	GetWorld()->GetTimerManager().SetTimerForNextTick(Delegate);
 }
 
+bool UMutableExtensionComponent::RuntimeUpdateMutableComponent(USkeletalMeshComponent* OwningComponent,
+	UCustomizableSkeletalComponent* Component, EMutableExtensionRuntimeUpdateError& Error, bool bIgnoreCloseDist, bool
+	bForceHighPriority)
+{
+	if (!ensureAlways(OnComponentRuntimeUpdateCompleted.IsBound()))
+	{
+		Error = EMutableExtensionRuntimeUpdateError::DelegateNotBound;
+		return false;
+	}
+
+	Error = EMutableExtensionRuntimeUpdateError::None;
+
+	if (IsPendingUpdate(Component))
+	{
+		// Error instead of doing the check for them, it is likely not intended that they come back here again so soon,
+		// so they should handle it themselves
+		
+		FMessageLog MessageLog {"PIE"};
+		const FString ErrorString = FString::Printf(TEXT("[ %s ] { %s } is already pending update. Please call UMutableExtensionComponent::IsPendingUpdate() before making this call."),
+			*FString(__FUNCTION__), *Component->CustomizableObjectInstance.GetName());
+		MessageLog.Error(FText::FromString(ErrorString));
+
+		Error = EMutableExtensionRuntimeUpdateError::AlreadyPendingUpdate;
+		return false;
+	}
+
+	if (!UMutableFunctionLib::IsMutableMeshValidToUpdate(Component))
+	{
+		Error = EMutableExtensionRuntimeUpdateError::MeshNotValidToUpdate;
+		return false;
+	}
+
+	FMutablePendingRuntimeUpdate PendingUpdate { Component->CustomizableObjectInstance, Component, OwningComponent };
+	InstancesPendingRuntimeUpdate.Add(Component->CustomizableObjectInstance, PendingUpdate);
+	
+	FInstanceUpdateDelegate Delegate;
+	Delegate.BindDynamic(this, &ThisClass::OnMutableInstanceRuntimeUpdateCompleted);
+	UMutableFunctionLib::UpdateMutableMesh_Callback(Component, Delegate, bIgnoreCloseDist, bForceHighPriority);
+
+	return true;
+}
+
+bool UMutableExtensionComponent::IsPendingUpdate(const UCustomizableSkeletalComponent* Component) const
+{
+	return IsPendingUpdate(Component->CustomizableObjectInstance);
+}
+
+bool UMutableExtensionComponent::IsPendingUpdate(const UCustomizableObjectInstance* Instance) const
+{
+	return InstancesPendingRuntimeUpdate.Contains(Instance);
+}
+
+const FMutablePendingRuntimeUpdate* UMutableExtensionComponent::GetIncompletePendingRuntimeUpdate(
+	const UCustomizableSkeletalComponent* Component) const
+{
+	return GetIncompletePendingRuntimeUpdate(Component->CustomizableObjectInstance);
+}
+
+const FMutablePendingRuntimeUpdate* UMutableExtensionComponent::GetIncompletePendingRuntimeUpdate(
+	const UCustomizableObjectInstance* Instance) const
+{
+	return InstancesPendingRuntimeUpdate.Find(Instance);
+}
+
+void UMutableExtensionComponent::OnMutableInstanceRuntimeUpdateCompleted(const FUpdateContext& Result)
+{
+	check(Result.Instance);
+
+	if (const FMutablePendingRuntimeUpdate* PendingUpdate = GetIncompletePendingRuntimeUpdate(Result.Instance))
+	{
+		InstancesPendingRuntimeUpdate.Remove(Result.Instance);
+		CallOnComponentRuntimeUpdateCompleted(*PendingUpdate);
+	}
+}
+
+void UMutableExtensionComponent::CallOnComponentRuntimeUpdateCompleted(const FMutablePendingRuntimeUpdate& PendingUpdate) const
+{
+	// Delay by a frame to be safe -- can it crash? Not yet tested
+	FTimerDelegate Delegate;
+	Delegate.BindLambda([&]()
+	{
+		OnComponentRuntimeUpdateCompleted.ExecuteIfBound(PendingUpdate);
+	});
+	GetWorld()->GetTimerManager().SetTimerForNextTick(Delegate);
+}
+
 void UMutableExtensionComponent::Initialize()
 {
 	InstancesPendingInitialization.Reset();
 	InstancesPendingInitialUpdate.Reset();
+	InstancesPendingRuntimeUpdate.Reset();
 }
 
 void UMutableExtensionComponent::Deinitialize()
 {
-	InstancesPendingInitialization.Empty();		// Clear from memory also
-	InstancesPendingInitialUpdate.Empty();				// Clear from memory also
+	// Clear from memory also ( Empty() )
+	InstancesPendingInitialization.Empty();		
+	InstancesPendingInitialUpdate.Empty();
+	InstancesPendingRuntimeUpdate.Empty();
 }

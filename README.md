@@ -2,6 +2,8 @@
 
 Solving how to initialize a character adequately with Mutable was a nightmare and required multiple workarounds.
 
+This plugin is the result of finessing the initialization routing.
+
 C++ Required.
 
 ## Pre-Setup
@@ -26,15 +28,15 @@ Then in `CustomizableObjectSystem.cpp` find `FinishUpdateGlobal()` and change it
 	Context->UpdateNativeCallback.Broadcast(ContextPublic);
 ```
 
-This has been pull requested to the engine here: TODO
+This has been pull requested to the engine here: https://github.com/EpicGames/UnrealEngine/pull/11859
 
 ## Setup
 
 ### Add Component
 
-Add a `UMutableInitializationComponent` to your Character.
+Add a `UMutableExtensionComponent` to your Character.
 
-### Create Functions
+### Initialization Functions
 
 In your character header:
 
@@ -56,8 +58,8 @@ Where your character is ready - generally they have a player controller, player 
 You can call the following:
 
 ```cpp
-MutableInitialization->OnAllInstancesInitialized.BindDynamic(this, &ThisClass::OnMutableMeshesGenerated);
-MutableInitialization->InitializeMutableComponents(GatherMutableMeshesToInitialize());
+MutableExtension->OnAllInstancesInitializeCompleted.BindDynamic(this, &ThisClass::OnMutableMeshesGenerated);
+MutableExtension->InitializeMutableComponents(GatherMutableMeshesToInitialize());
 ```
 
 Implement the functions:
@@ -65,11 +67,11 @@ Implement the functions:
 ```cpp
 void AMyCharacter::OnMutableMeshesGenerated()
 {
-	MutableInitialization->OnAllComponentsUpdated.BindDynamic(this, &ThisClass::OnMutableMeshesUpdated);
-	MutableInitialization->UpdateMutableComponents(GatherMutableMeshesToInitialize(), true, true);
+	MutableExtension->OnAllComponentsInitialUpdateCompleted.BindDynamic(this, &ThisClass::OnMutableMeshesInitialUpdated);
+	MutableExtension->InitialUpdateMutableComponents(GatherMutableMeshesToInitialize(), true, true);
 }
 
-void AMyCharacter::OnMutableMeshesUpdated()
+void AMyCharacter::OnMutableMeshesInitialUpdated()
 {
 	// We're ready to go - do whatever you need when the mutable meshes are ready
 
@@ -97,11 +99,87 @@ TArray<UCustomizableSkeletalComponent*> AMyCharacter::GatherMutableMeshesToIniti
 }
 ```
 
+### Runtime Update Functions
+
+This usage is a suggestion rather than a requirement.
+
+Add these functions to your header:
+
+```cpp
+	UFUNCTION(BlueprintCallable, Category="Titan|Mutable")
+	void RequestMutableRuntimeUpdate(UCustomizableSkeletalComponent* MutableComponent, bool bIgnoreCloseDist = false, bool bForceHighPriority = false);
+
+	UFUNCTION()
+	virtual void OnMutableRuntimeUpdateFinished(const FMutablePendingRuntimeUpdate& MutableUpdate);
+
+	UFUNCTION(BlueprintImplementableEvent, Category="Mutable", meta=(DisplayName="On Mutable Runtime Update Finished"))
+	void K2_OnMutableRuntimeUpdateFinished(const FMutablePendingRuntimeUpdate& MutableUpdate);
+```
+
+Implement:
+
+```cpp
+void AMyCharacter::RequestMutableRuntimeUpdate(USkeletalMeshComponent* OwningComponent,
+	UCustomizableSkeletalComponent* MutableComponent, bool bIgnoreCloseDist, bool bForceHighPriority)
+{
+	if (!ensure(MutableComponent))
+	{
+		// ...?
+		return;
+	}
+	
+	if (ensure(MutableExtension))
+	{
+		if (!MutableExtension->OnComponentRuntimeUpdateCompleted.IsBoundToObject(this))
+		{
+			MutableExtension->OnComponentRuntimeUpdateCompleted.BindDynamic(this, &ThisClass::OnMutableRuntimeUpdateFinished);
+		}
+
+		// Find the OwningComponent automatically -- Mutable components are added directly under skeletal mesh components
+		USceneComponent* AttachParent = MutableComponent->GetAttachParent();
+		USkeletalMeshComponent* OwningComponent = AttachParent ? Cast<USkeletalMeshComponent>(AttachParent) : nullptr;
+		if (!ensure(OwningComponent))
+		{
+			return;
+		}
+
+		EMutableExtensionRuntimeUpdateError Error;
+		if (!MutableExtension->RuntimeUpdateMutableComponent(OwningComponent, MutableComponent, Error, bIgnoreCloseDist, bForceHighPriority))
+		{
+			if (TitanCharacterCVars::MutableRuntimeErrorDebugLevel > 0)
+			{
+				const bool bVerbose = TitanCharacterCVars::MutableRuntimeErrorDebugLevel > 1;
+				FString ErrorString = UMutableFunctionLib::ParseRuntimeUpdateError(Error, bVerbose);
+				UE_LOG(LogTitanCharacter, Error, TEXT("[ %s ] : %s"), *FString(__FUNCTION__), *ErrorString);
+			}
+		}
+	}
+}
+
+void AMyCharacter::OnMutableRuntimeUpdateFinished(const FMutablePendingRuntimeUpdate& MutableUpdate)
+{
+	// Do some stuff here, maybe you want to set some UMaterialInstanceDynamic on the MutableUpdate->OwningComponent?
+	
+#if ENABLE_DRAW_DEBUG
+	if (bMutableRuntimeUpdateDrawDebugValues)
+	{
+		const FString ResultString =
+			FString::Printf(TEXT("[ %s ] : OwningComponent : { %s }, MutableComponent : { %s }, MutableInstance : { %s }"),
+				*FString(__FUNCTION__), *GetNameSafe(MutableUpdate.OwningComponent), *GetNameSafe(MutableUpdate.MutableComponent),
+				*GetNameSafe(MutableUpdate.MutableInstance));
+		
+		GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Green, ResultString);
+	}
+#endif
+}
+```
 
 ## Changelog
 
-### 1.2.0
+### 2.0.0
 * Refactor `MutableInitializationComponent` ➜ `MutableExtensionComponent`
+* Significant code refactor
+* Added support for runtime updates ( `UMutableExtensionComponent::RuntimeUpdateMutableComponents()` )
 
 ### 1.1.0
 * Change to `UActorComponent` instead of Subsystem

@@ -7,29 +7,14 @@
 #include "MuCO/CustomizableObjectInstance.h"
 #include "MutableFunctionLib.generated.h"
 
+enum class EMutableExtensionRuntimeUpdateError : uint8;
 class UCustomizableSkeletalComponent;
 
-
-/*
- * Instead of:
- 		FInstanceUpdateDelegate Delegate;
-		Delegate.BindDynamic(this, &ThisClass::OnMutableInstanceUpdated);
-		if (UMutableFunctionLib::UpdateMutableMesh_Callback(Component, Delegate, bIgnoreCloseDist, bForceHighPriority))
- * You can do:
-		UPDATE_MUTABLE_MESH_CALLBACK(MutableMesh, &ThisClass::UpdateMutable, true, true)
-		if (bMutableResult) {}
- */
-
-#define UPDATE_MUTABLE_MESH(MutableMesh, bIgnoreCloseDist, bForceHighPriority, ...) \
-const bool bMutableResult = UMutableFunctionLib::UpdateMutableMesh(MutableMesh, bIgnoreCloseDist, bForceHighPriority);
-
-#define UPDATE_MUTABLE_MESH_CALLBACK(MutableMesh, Func, bIgnoreCloseDist, bForceHighPriority, ...) \
-FInstanceUpdateDelegate Delegate; \
-Delegate.BindDynamic(this, Func); \
-const bool bMutableResult = UMutableFunctionLib::UpdateMutableMesh_Callback(MutableMesh, Delegate, bIgnoreCloseDist, bForceHighPriority);
-
 /**
- * 
+ * USAGE:
+ *	FInstanceUpdateDelegate Delegate;
+ *	Delegate.BindDynamic(this, &ThisClass::OnMutableInstanceUpdated);
+ *	if (UMutableFunctionLib::UpdateMutableMesh_Callback(Component, Delegate, bIgnoreCloseDist, bForceHighPriority)) {}
  */
 UCLASS()
 class MUTABLEEXTENSION_API UMutableFunctionLib : public UBlueprintFunctionLibrary
@@ -40,10 +25,23 @@ public:
 	static ESkeletalMeshStatus GetMutableComponentStatus(const UCustomizableSkeletalComponent* Component, bool& bValidResult);
 	
 public:
-	static bool UpdateMutableMesh(const UCustomizableSkeletalComponent* MutableMesh,
+	static void ErrorOnFailedValidation(const UCustomizableSkeletalComponent* MutableMesh);
+
+	/** @return True if we can update this mutable mesh */
+	static bool IsMutableMeshValidToUpdate(const UCustomizableSkeletalComponent* MutableMesh);
+
+	/** Must always call IsMutableMeshValidToUpdate() beforehand */
+	static void UpdateMutableMesh(const UCustomizableSkeletalComponent* MutableMesh,
 		bool bIgnoreCloseDist = false, bool bForceHighPriority = false);
-	
-	static bool UpdateMutableMesh_Callback(const UCustomizableSkeletalComponent* MutableMesh,
+
+	/** Must always call IsMutableMeshValidToUpdate() beforehand */
+	static void UpdateMutableMesh_Callback(const UCustomizableSkeletalComponent* MutableMesh,
 		const FInstanceUpdateDelegate& InstanceUpdateDelegate,
 		bool bIgnoreCloseDist = false, bool bForceHighPriority = false);
+
+	static FString ParseRuntimeUpdateError(const EMutableExtensionRuntimeUpdateError& Error, bool bVerbose);
+
+protected:
+	static FString ParseRuntimeUpdateError_Simple(const EMutableExtensionRuntimeUpdateError& Error);
+	static FString ParseRuntimeUpdateError_Verbose(const EMutableExtensionRuntimeUpdateError& Error);
 };
