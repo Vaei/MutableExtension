@@ -10,29 +10,11 @@ C++ Required.
 
 Mutable in it's current state lacks the information we need to initialize altogether.
 
-This has been pull requested to the engine here: https://github.com/EpicGames/UnrealEngine/pull/11859
+You must either make the changes in the engine source code or by copy/pasting the plugin out of the engine and into your project and changing it there.
 
-You must either make the same changes in the engine source code or by copy/pasting the plugin out of the engine and into your project and changing it there.
-
-If for some reason you can't read the commit, the information is here:
-
-In `CustomizableObjectInstance.h` find `struct FUpdateContext` and add this as a struct member:
-
-```cpp
-/** When iterating multiple instances with callback we need to identify which instance was updated */
-UPROPERTY()
-UCustomizableObjectInstance* Instance;
-```
-
-Then in `CustomizableObjectSystem.cpp` find `FinishUpdateGlobal()` and add the line:
-```cpp
-	FUpdateContext ContextPublic;
-	ContextPublic.UpdateResult = Context->UpdateResult;
-	ContextPublic.Instance = Instance;  // We add this line only (the rest are so you can locate the correct line)
-		
-	Context->UpdateCallback.ExecuteIfBound(ContextPublic);
-	Context->UpdateNativeCallback.Broadcast(ContextPublic);
-```
+Add the following commits:
+* https://github.com/EpicGames/UnrealEngine/pull/11859/commits/f74b6794e7152c7cf71335d38d5e07c96f9e4240
+* https://github.com/EpicGames/UnrealEngine/pull/11870/commits/3eafcd0bc80ced3f0fce565b8e3b95efa6aeb39e
 
 ## Setup
 
@@ -180,6 +162,9 @@ void AMyCharacter::OnMutableRuntimeUpdateFinished(const FMutablePendingRuntimeUp
 ```
 
 ## Changelog
+
+### 2.1.0
+* Add fix for engine bug not generating instances on first run
 
 ### 2.0.1
 * Add `UMutableFunctionLib::DumpMutableData()` & `UMutableFunctionLib::DumpMutableDataForTargetedActor()`

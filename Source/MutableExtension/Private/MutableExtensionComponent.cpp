@@ -4,7 +4,10 @@
 #include "MutableExtensionComponent.h"
 
 #include "MutableFunctionLib.h"
+#include "MuCO/CustomizableObjectInstancePrivate.h"
 #include "MuCO/CustomizableSkeletalComponent.h"
+#include "MuCO/CustomizableObjectInstanceDescriptor.h"
+#include "MuCO/CustomizableObjectSystemPrivate.h"
 
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MutableExtensionComponent)
@@ -40,8 +43,13 @@ void UMutableExtensionComponent::InitializeMutableComponents(TArray<UCustomizabl
 		{
 			if (Status == ESkeletalMeshStatus::NotGenerated)
 			{
+				// Listen for the mesh generating
 				InstancesPendingInitialization.AddUnique(Component->CustomizableObjectInstance);
 				Component->CustomizableObjectInstance->UpdatedDelegate.AddDynamic(this, &ThisClass::OnMutableInstanceInitializeCompleted);
+
+				// There is a bug with mutable where it simply never generates until you exit PIE and re-PIE after first run
+				FMutableInstanceUpdateMap RequestedLODUpdates;
+				Component->CustomizableObjectInstance->GetPrivate()->UpdateInstanceIfNotGenerated(*Component->CustomizableObjectInstance, RequestedLODUpdates);
 			}
 		}
 	}
