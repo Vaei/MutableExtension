@@ -181,6 +181,9 @@ void AMyCharacter::OnMutableRuntimeUpdateFinished(const FMutablePendingRuntimeUp
 
 ## Changelog
 
+### 2.0.1
+* Add `UMutableFunctionLib::DumpMutableData()` & `UMutableFunctionLib::DumpMutableDataForTargetedActor()`
+
 ### 2.0.0
 * Refactor `MutableInitializationComponent` ➜ `MutableExtensionComponent`
 * Significant code refactor

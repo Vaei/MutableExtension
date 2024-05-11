@@ -39,7 +39,26 @@ public:
 		const FInstanceUpdateDelegate& InstanceUpdateDelegate,
 		bool bIgnoreCloseDist = false, bool bForceHighPriority = false);
 
+public:
+	static USkeletalMeshComponent* GetSkeletalMeshCompFromMutableComp(const UCustomizableSkeletalComponent* Component);
+	
+public:
+	static AActor* GetTargetedActor(const APlayerController* PlayerController, ECollisionChannel TraceChannel = ECC_Visibility, bool bAllowUnderCursor = false, bool bDebugTargetActorTrace = false);
+
+	UFUNCTION(BlueprintCallable, Category="Mutable")
+	static void DumpMutableData(const AActor* ForActor, bool bDumpToMessageLog = false);
+
+	/** Determine which actor we are looking at and dump their data */
+	UFUNCTION(BlueprintCallable, Category="Mutable")
+	static void DumpMutableDataForTargetedActor(const APlayerController* PlayerController, ECollisionChannel TraceChannel = ECC_Visibility, bool bDumpToMessageLog = false, bool bAllowUnderCursor = false, bool bDebugTargetActorTrace = true);
+
+	static FString GatherMutableDataDump(const AActor* ForActor);
+
 	static FString ParseRuntimeUpdateError(const EMutableExtensionRuntimeUpdateError& Error, bool bVerbose);
+
+	static FString GetNetRoleString(ENetRole Role);
+
+	static FString GetSkeletalMeshStatusString(ESkeletalMeshStatus Status);
 
 protected:
 	static FString ParseRuntimeUpdateError_Simple(const EMutableExtensionRuntimeUpdateError& Error);
