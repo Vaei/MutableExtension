@@ -20,7 +20,7 @@ UMutableExtensionComponent::UMutableExtensionComponent()
 
 void UMutableExtensionComponent::InitializeMutableComponents(TArray<UCustomizableSkeletalComponent*> Components)
 {
-	if (!ensureAlways(OnAllInstancesInitialized.IsBound()))
+	if (!ensureAlways(OnAllInstancesInitializeCompleted.IsBound()))
 	{
 		return;
 	}
@@ -41,7 +41,7 @@ void UMutableExtensionComponent::InitializeMutableComponents(TArray<UCustomizabl
 			if (Status == ESkeletalMeshStatus::NotGenerated)
 			{
 				InstancesPendingInitialization.AddUnique(Component->CustomizableObjectInstance);
-				Component->CustomizableObjectInstance->UpdatedDelegate.AddDynamic(this, &ThisClass::OnMutableInstanceInitialized);
+				Component->CustomizableObjectInstance->UpdatedDelegate.AddDynamic(this, &ThisClass::OnMutableInstanceInitializeCompleted);
 			}
 		}
 	}
@@ -52,14 +52,14 @@ void UMutableExtensionComponent::InitializeMutableComponents(TArray<UCustomizabl
 	}
 }
 
-void UMutableExtensionComponent::OnMutableInstanceInitialized(UCustomizableObjectInstance* Instance)
+void UMutableExtensionComponent::OnMutableInstanceInitializeCompleted(UCustomizableObjectInstance* Instance)
 {
 	if (InstancesPendingInitialization.Contains(Instance))
 	{
 		InstancesPendingInitialization.Remove(Instance);
 	}
 
-	Instance->UpdatedDelegate.RemoveDynamic(this, &ThisClass::OnMutableInstanceInitialized);
+	Instance->UpdatedDelegate.RemoveDynamic(this, &ThisClass::OnMutableInstanceInitializeCompleted);
 
 	if (InstancesPendingInitialization.Num() == 0)
 	{
@@ -74,7 +74,7 @@ void UMutableExtensionComponent::CallOnAllInstancesInitialized()
 	Delegate.BindLambda([&]()
 	{
 		bHasCompletedInitialization = true;
-		OnAllInstancesInitialized.ExecuteIfBound();
+		OnAllInstancesInitializeCompleted.ExecuteIfBound();
 	});
 	GetWorld()->GetTimerManager().SetTimerForNextTick(Delegate);
 }
@@ -82,7 +82,7 @@ void UMutableExtensionComponent::CallOnAllInstancesInitialized()
 void UMutableExtensionComponent::InitialUpdateMutableComponents(TArray<UCustomizableSkeletalComponent*> Components,
 	bool bIgnoreCloseDist, bool bForceHighPriority)
 {
-	if (!ensureAlways(OnAllInstancesInitialized.IsBound()))
+	if (!ensureAlways(OnAllInstancesInitializeCompleted.IsBound()))
 	{
 		return;
 	}
@@ -90,7 +90,7 @@ void UMutableExtensionComponent::InitialUpdateMutableComponents(TArray<UCustomiz
 	for (UCustomizableSkeletalComponent* Component : Components)
 	{
 		FInstanceUpdateDelegate Delegate;
-		Delegate.BindDynamic(this, &ThisClass::OnMutableInstanceInitialUpdated);
+		Delegate.BindDynamic(this, &ThisClass::OnMutableInstanceInitialUpdateCompleted);
 		if (UMutableFunctionLib::UpdateMutableMesh_Callback(Component, Delegate, bIgnoreCloseDist, bForceHighPriority))
 		{
 			InstancesPendingInitialUpdate.AddUnique(Component->CustomizableObjectInstance);
@@ -103,7 +103,7 @@ void UMutableExtensionComponent::InitialUpdateMutableComponents(TArray<UCustomiz
 	}
 }
 
-void UMutableExtensionComponent::OnMutableInstanceInitialUpdated(const FUpdateContext& Result)
+void UMutableExtensionComponent::OnMutableInstanceInitialUpdateCompleted(const FUpdateContext& Result)
 {
 	check(Result.Instance);
 	
@@ -125,7 +125,7 @@ void UMutableExtensionComponent::CallOnAllComponentsInitialUpdated()
 	Delegate.BindLambda([&]()
 	{
 		bHasCompletedInitialUpdate = true;
-		OnAllComponentsInitialUpdated.ExecuteIfBound();
+		OnAllComponentsInitialUpdateCompleted.ExecuteIfBound();
 	});
 	GetWorld()->GetTimerManager().SetTimerForNextTick(Delegate);
 }

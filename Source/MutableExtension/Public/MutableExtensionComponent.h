@@ -1,4 +1,4 @@
-﻿// Copyright (c) Jared Taylor. All Rights Reserved
+// Copyright (c) Jared Taylor. All Rights Reserved
 
 #pragma once
 
@@ -31,7 +31,7 @@ public:
 	UPROPERTY(Transient, DuplicateTransient)
 	bool bHasCompletedInitialization;
 
-	FOnMutableExtensionSimpleDelegate OnAllInstancesInitialized;
+	FOnMutableExtensionSimpleDelegate OnAllInstancesInitializeCompleted;
 	
 	UPROPERTY()
 	TArray<UCustomizableObjectInstance*> InstancesPendingInitialization;
@@ -40,7 +40,7 @@ public:
 	void InitializeMutableComponents(TArray<UCustomizableSkeletalComponent*> Components);
 
 	UFUNCTION()
-	void OnMutableInstanceInitialized(UCustomizableObjectInstance* Instance);
+	void OnMutableInstanceInitializeCompleted(UCustomizableObjectInstance* Instance);
 
 	UFUNCTION()
 	void CallOnAllInstancesInitialized();
@@ -53,7 +53,7 @@ public:
 	UPROPERTY(Transient, DuplicateTransient)
 	bool bHasCompletedInitialUpdate;
 
-	FOnMutableExtensionSimpleDelegate OnAllComponentsInitialUpdated;
+	FOnMutableExtensionSimpleDelegate OnAllComponentsInitialUpdateCompleted;
 	
 	UPROPERTY()
 	TArray<UCustomizableObjectInstance*> InstancesPendingInitialUpdate;
@@ -61,14 +61,14 @@ public:
 	void InitialUpdateMutableComponents(TArray<UCustomizableSkeletalComponent*> Components, bool bIgnoreCloseDist = false, bool bForceHighPriority = false);
 
 	UFUNCTION()
-	void OnMutableInstanceInitialUpdated(const FUpdateContext& Result);
+	void OnMutableInstanceInitialUpdateCompleted(const FUpdateContext& Result);
 
 	UFUNCTION()
 	void CallOnAllComponentsInitialUpdated();
 
 	// ~End Initial Update
 
-	// Begin 
+public:
 	
 public:
 
