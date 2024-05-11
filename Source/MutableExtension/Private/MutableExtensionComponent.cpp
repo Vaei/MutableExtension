@@ -41,15 +41,18 @@ void UMutableExtensionComponent::InitializeMutableComponents(TArray<UCustomizabl
 		ESkeletalMeshStatus Status = UMutableFunctionLib::GetMutableComponentStatus(Component, bValid);
 		if (bValid)
 		{
-			if (Status == ESkeletalMeshStatus::NotGenerated)
+			if (Status == ESkeletalMeshStatus::NotGenerated && Component->CustomizableObjectInstance->CanUpdateInstance())
 			{
-				// Listen for the mesh generating
-				InstancesPendingInitialization.AddUnique(Component->CustomizableObjectInstance);
-				Component->CustomizableObjectInstance->UpdatedDelegate.AddDynamic(this, &ThisClass::OnMutableInstanceInitializeCompleted);
+				if (!InstancesPendingInitialization.Contains(Component->CustomizableObjectInstance))
+				{
+					// Listen for the mesh generating
+					InstancesPendingInitialization.Add(Component->CustomizableObjectInstance);
+					Component->CustomizableObjectInstance->UpdatedDelegate.AddDynamic(this, &ThisClass::OnMutableInstanceInitializeCompleted);
 
-				// There is a bug with mutable where it simply never generates until you exit PIE and re-PIE after first run
-				FMutableInstanceUpdateMap RequestedLODUpdates;
-				Component->CustomizableObjectInstance->GetPrivate()->UpdateInstanceIfNotGenerated(*Component->CustomizableObjectInstance, RequestedLODUpdates);
+					// There is a bug with mutable where it simply never generates until you exit PIE and re-PIE after first run
+					FMutableInstanceUpdateMap RequestedLODUpdates;
+					Component->CustomizableObjectInstance->GetPrivate()->UpdateInstanceIfNotGenerated(*Component->CustomizableObjectInstance, RequestedLODUpdates);
+				}
 			}
 		}
 	}
@@ -65,13 +68,13 @@ void UMutableExtensionComponent::OnMutableInstanceInitializeCompleted(UCustomiza
 	if (InstancesPendingInitialization.Contains(Instance))
 	{
 		InstancesPendingInitialization.Remove(Instance);
-	}
 
-	Instance->UpdatedDelegate.RemoveDynamic(this, &ThisClass::OnMutableInstanceInitializeCompleted);
+		Instance->UpdatedDelegate.RemoveDynamic(this, &ThisClass::OnMutableInstanceInitializeCompleted);
 
-	if (InstancesPendingInitialization.Num() == 0)
-	{
-		CallOnAllInstancesInitialized();
+		if (InstancesPendingInitialization.Num() == 0)
+		{
+			CallOnAllInstancesInitialized();
+		}
 	}
 }
 
@@ -90,7 +93,7 @@ void UMutableExtensionComponent::CallOnAllInstancesInitialized()
 void UMutableExtensionComponent::InitialUpdateMutableComponents(TArray<UCustomizableSkeletalComponent*> Components,
 	bool bIgnoreCloseDist, bool bForceHighPriority)
 {
-	if (!ensureAlways(OnAllInstancesInitializeCompleted.IsBound()))
+	if (!ensureAlways(OnAllComponentsInitialUpdateCompleted.IsBound()))
 	{
 		return;
 	}
@@ -108,11 +111,15 @@ void UMutableExtensionComponent::InitialUpdateMutableComponents(TArray<UCustomiz
 		{
 			continue;
 		}
-		
-		FInstanceUpdateDelegate Delegate;
-		Delegate.BindDynamic(this, &ThisClass::OnMutableInstanceInitialUpdateCompleted);
-		UMutableFunctionLib::UpdateMutableMesh_Callback(Component, Delegate, bIgnoreCloseDist, bForceHighPriority);
-		InstancesPendingInitialUpdate.AddUnique(Component->CustomizableObjectInstance);
+
+		if (!InstancesPendingInitialUpdate.Contains(Component->CustomizableObjectInstance))
+		{
+			InstancesPendingInitialUpdate.Add(Component->CustomizableObjectInstance);
+
+			FInstanceUpdateDelegate Delegate;
+			Delegate.BindDynamic(this, &ThisClass::OnMutableInstanceInitialUpdateCompleted);
+			UMutableFunctionLib::UpdateMutableMesh_Callback(Component, Delegate, bIgnoreCloseDist, bForceHighPriority);
+		}
 	}
 
 	if (InstancesPendingInitialUpdate.Num() == 0)
@@ -128,11 +135,11 @@ void UMutableExtensionComponent::OnMutableInstanceInitialUpdateCompleted(const F
 	if (InstancesPendingInitialUpdate.Contains(Result.Instance))
 	{
 		InstancesPendingInitialUpdate.Remove(Result.Instance);
-	}
 
-	if (InstancesPendingInitialUpdate.Num() == 0)
-	{
-		CallOnAllComponentsInitialUpdated();
+		if (InstancesPendingInitialUpdate.Num() == 0)
+		{
+			CallOnAllComponentsInitialUpdated();
+		}
 	}
 }
 

@@ -51,6 +51,9 @@ bool UMutableFunctionLib::IsMutableMeshValidToUpdate(const UCustomizableSkeletal
 void UMutableFunctionLib::UpdateMutableMesh(const UCustomizableSkeletalComponent* MutableMesh, bool bIgnoreCloseDist,
 	bool bForceHighPriority)
 {
+	// We do not return true or false because the delegate from UpdateSkeletalMeshAsyncResult() will be executed
+	// before we return true if it updates in game thread (it usually does). We could output a bool& but better
+	// that the user does their own sanity checks and handles fail cases themselves
 	if (!IsMutableMeshValidToUpdate(MutableMesh))
 	{
 		ErrorOnFailedValidation(MutableMesh);
@@ -63,9 +66,13 @@ void UMutableFunctionLib::UpdateMutableMesh(const UCustomizableSkeletalComponent
 void UMutableFunctionLib::UpdateMutableMesh_Callback(const UCustomizableSkeletalComponent* MutableMesh,
 	const FInstanceUpdateDelegate& InstanceUpdateDelegate, bool bIgnoreCloseDist, bool bForceHighPriority)
 {
+	// We do not return true or false because the delegate from UpdateSkeletalMeshAsyncResult() will be executed
+	// before we return true if it updates in game thread (it usually does). We could output a bool& but better
+	// that the user does their own sanity checks and handles fail cases themselves
 	if (!IsMutableMeshValidToUpdate(MutableMesh))
 	{
 		ErrorOnFailedValidation(MutableMesh);
+		return;
 	}
 	
 	MutableMesh->CustomizableObjectInstance->UpdateSkeletalMeshAsyncResult(InstanceUpdateDelegate,
@@ -252,18 +259,27 @@ FString UMutableFunctionLib::GatherMutableDataDump(const AActor* ForActor)
 				const ESkeletalMeshStatus Status = GetMutableComponentStatus(MutableComp, bValidResult);
 				Dump += FString::Printf(TEXT("Mesh Status: { %s }\n"), *(bValidResult ? GetSkeletalMeshStatusString(Status) : "Unknown"));
 
+				Dump += FString::Printf(TEXT("Discarded (Too Many Instances): { %s }\n"), *LexToString(Instance->GetIsDiscardedBecauseOfTooManyInstances()));
+				Dump += FString::Printf(TEXT("Num LODs: { %d }\n"), Instance->GetNumLODsAvailable());
+
 				// Skeletal mesh comp data
 				USkeletalMeshComponent* MeshComponent = GetSkeletalMeshCompFromMutableComp(MutableComp);
 				Dump += FString::Printf(TEXT("Skeletal Mesh Comp: { %s }\n"), *GetNameSafe(MeshComponent));
 				if (MeshComponent)
 				{
+					const bool bHiddenInGame = MeshComponent->bHiddenInGame;  // For some reason this evaluates to int with LexToString otherwise
+					
 					USkeletalMesh* SkeletalMesh = MeshComponent->GetSkeletalMeshAsset();
 					Dump += FString::Printf(TEXT("Skeletal Mesh: { %s }\n"), *GetNameSafe(SkeletalMesh));
 					Dump += FString::Printf(TEXT("Anim Instance: { %s }\n"), *GetNameSafe(MeshComponent->GetAnimInstance()));
 					Dump += FString::Printf(TEXT("Post-Process Instance: { %s }\n"), *GetNameSafe(MeshComponent->GetPostProcessInstance()));
-					Dump += FString::Printf(TEXT("Hidden In Game: { %s }\n"), *LexToString(MeshComponent->bHiddenInGame));
+					Dump += FString::Printf(TEXT("Bounds Scale: { %s }\n"), *FString::SanitizeFloat(MeshComponent->BoundsScale));
+					Dump += FString::Printf(TEXT("Hidden In Game: { %s }\n"), *LexToString(bHiddenInGame));
 					Dump += FString::Printf(TEXT("Visible: { %s }\n"), *LexToString(MeshComponent->IsVisible()));
 					Dump += FString::Printf(TEXT("Num Materials: { %d }\n"), MeshComponent->GetNumMaterials());
+					Dump += FString::Printf(TEXT("Pending Init: { %s }\n"), *LexToString(ExtensionComp->InstancesPendingInitialization.Contains(Instance)));
+					Dump += FString::Printf(TEXT("Pending Init Update: { %s }\n"), *LexToString(ExtensionComp->InstancesPendingInitialUpdate.Contains(Instance)));
+					Dump += FString::Printf(TEXT("Pending Runtime Update: { %s }\n"), *LexToString(ExtensionComp->InstancesPendingRuntimeUpdate.Contains(Instance)));
 				}
 			}
 		}

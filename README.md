@@ -163,6 +163,11 @@ void AMyCharacter::OnMutableRuntimeUpdateFinished(const FMutablePendingRuntimeUp
 
 ## Changelog
 
+### 2.2.0
+* Improve instance TArray handling to ensure multiple instances aren't being cached or called on
+* Additional dumped data
+* Fixed bug where `UMutableExtensionComponent::InitialUpdateMutableComponents` was checking for wrong delegate being bound
+
 ### 2.1.0
 * Add fix for engine bug not generating instances on first run
 
