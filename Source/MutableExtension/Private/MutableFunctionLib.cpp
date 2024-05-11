@@ -259,9 +259,6 @@ FString UMutableFunctionLib::GatherMutableDataDump(const AActor* ForActor)
 				const ESkeletalMeshStatus Status = GetMutableComponentStatus(MutableComp, bValidResult);
 				Dump += FString::Printf(TEXT("Mesh Status: { %s }\n"), *(bValidResult ? GetSkeletalMeshStatusString(Status) : "Unknown"));
 
-				Dump += FString::Printf(TEXT("Discarded (Too Many Instances): { %s }\n"), *LexToString(Instance->GetIsDiscardedBecauseOfTooManyInstances()));
-				Dump += FString::Printf(TEXT("Num LODs: { %d }\n"), Instance->GetNumLODsAvailable());
-
 				// Skeletal mesh comp data
 				USkeletalMeshComponent* MeshComponent = GetSkeletalMeshCompFromMutableComp(MutableComp);
 				Dump += FString::Printf(TEXT("Skeletal Mesh Comp: { %s }\n"), *GetNameSafe(MeshComponent));

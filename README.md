@@ -163,6 +163,9 @@ void AMyCharacter::OnMutableRuntimeUpdateFinished(const FMutablePendingRuntimeUp
 
 ## Changelog
 
+### 2.2.1
+* Fixed crash with dumped data
+
 ### 2.2.0
 * Improve instance TArray handling to ensure multiple instances aren't being cached or called on
 * Additional dumped data
