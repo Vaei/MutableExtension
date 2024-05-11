@@ -11,7 +11,7 @@
 
 UMutableExtensionComponent::UMutableExtensionComponent()
 	: bHasCompletedInitialization(false)
-	, bHasCompletedUpdate(false)
+	, bHasCompletedInitialUpdate(false)
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
@@ -41,7 +41,7 @@ void UMutableExtensionComponent::InitializeMutableComponents(TArray<UCustomizabl
 			if (Status == ESkeletalMeshStatus::NotGenerated)
 			{
 				InstancesPendingInitialization.AddUnique(Component->CustomizableObjectInstance);
-				Component->CustomizableObjectInstance->UpdatedDelegate.AddDynamic(this, &ThisClass::OnMutableInstanceInitialized);
+				Component->CustomizableObjectInstance->InitialUpdatedDelegate.AddDynamic(this, &ThisClass::OnMutableInstanceInitialized);
 			}
 		}
 	}
@@ -59,7 +59,7 @@ void UMutableExtensionComponent::OnMutableInstanceInitialized(UCustomizableObjec
 		InstancesPendingInitialization.Remove(Instance);
 	}
 
-	Instance->UpdatedDelegate.RemoveDynamic(this, &ThisClass::OnMutableInstanceInitialized);
+	Instance->InitialUpdatedDelegate.RemoveDynamic(this, &ThisClass::OnMutableInstanceInitialized);
 
 	if (InstancesPendingInitialization.Num() == 0)
 	{
@@ -79,7 +79,7 @@ void UMutableExtensionComponent::CallOnAllInstancesInitialized()
 	GetWorld()->GetTimerManager().SetTimerForNextTick(Delegate);
 }
 
-void UMutableExtensionComponent::UpdateMutableComponents(TArray<UCustomizableSkeletalComponent*> Components,
+void UMutableExtensionComponent::InitialUpdateMutableComponents(TArray<UCustomizableSkeletalComponent*> Components,
 	bool bIgnoreCloseDist, bool bForceHighPriority)
 {
 	if (!ensureAlways(OnAllInstancesInitialized.IsBound()))
@@ -90,42 +90,42 @@ void UMutableExtensionComponent::UpdateMutableComponents(TArray<UCustomizableSke
 	for (UCustomizableSkeletalComponent* Component : Components)
 	{
 		FInstanceUpdateDelegate Delegate;
-		Delegate.BindDynamic(this, &ThisClass::OnMutableInstanceUpdated);
+		Delegate.BindDynamic(this, &ThisClass::OnMutableInstanceInitialUpdated);
 		if (UMutableFunctionLib::UpdateMutableMesh_Callback(Component, Delegate, bIgnoreCloseDist, bForceHighPriority))
 		{
-			InstancesPendingUpdate.AddUnique(Component->CustomizableObjectInstance);
+			InstancesPendingInitialUpdate.AddUnique(Component->CustomizableObjectInstance);
 		}
 	}
 
-	if (InstancesPendingUpdate.Num() == 0)
+	if (InstancesPendingInitialUpdate.Num() == 0)
 	{
-		CallOnAllComponentsUpdated();
+		CallOnAllComponentsInitialUpdated();
 	}
 }
 
-void UMutableExtensionComponent::OnMutableInstanceUpdated(const FUpdateContext& Result)
+void UMutableExtensionComponent::OnMutableInstanceInitialUpdated(const FUpdateContext& Result)
 {
 	check(Result.Instance);
 	
-	if (InstancesPendingUpdate.Contains(Result.Instance))
+	if (InstancesPendingInitialUpdate.Contains(Result.Instance))
 	{
-		InstancesPendingUpdate.Remove(Result.Instance);
+		InstancesPendingInitialUpdate.Remove(Result.Instance);
 	}
 
-	if (InstancesPendingUpdate.Num() == 0)
+	if (InstancesPendingInitialUpdate.Num() == 0)
 	{
-		CallOnAllComponentsUpdated();
+		CallOnAllComponentsInitialUpdated();
 	}
 }
 
-void UMutableExtensionComponent::CallOnAllComponentsUpdated()
+void UMutableExtensionComponent::CallOnAllComponentsInitialUpdated()
 {
 	// Delay by a frame, or it can crash, it isn't fully completed
 	FTimerDelegate Delegate;
 	Delegate.BindLambda([&]()
 	{
-		bHasCompletedUpdate = true;
-		OnAllComponentsUpdated.ExecuteIfBound();
+		bHasCompletedInitialUpdate = true;
+		OnAllComponentsInitialUpdated.ExecuteIfBound();
 	});
 	GetWorld()->GetTimerManager().SetTimerForNextTick(Delegate);
 }
@@ -133,11 +133,11 @@ void UMutableExtensionComponent::CallOnAllComponentsUpdated()
 void UMutableExtensionComponent::Initialize()
 {
 	InstancesPendingInitialization.Reset();
-	InstancesPendingUpdate.Reset();
+	InstancesPendingInitialUpdate.Reset();
 }
 
 void UMutableExtensionComponent::Deinitialize()
 {
 	InstancesPendingInitialization.Empty();		// Clear from memory also
-	InstancesPendingUpdate.Empty();				// Clear from memory also
+	InstancesPendingInitialUpdate.Empty();				// Clear from memory also
 }

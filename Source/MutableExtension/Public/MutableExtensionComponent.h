@@ -48,25 +48,27 @@ public:
 	// ~End Initialization
 
 public:
-	// Begin Update
+	// Begin Initial Update
 
 	UPROPERTY(Transient, DuplicateTransient)
-	bool bHasCompletedUpdate;
+	bool bHasCompletedInitialUpdate;
 
-	FOnMutableExtensionSimpleDelegate OnAllComponentsUpdated;
+	FOnMutableExtensionSimpleDelegate OnAllComponentsInitialUpdated;
 	
 	UPROPERTY()
-	TArray<UCustomizableObjectInstance*> InstancesPendingUpdate;
+	TArray<UCustomizableObjectInstance*> InstancesPendingInitialUpdate;
 
-	void UpdateMutableComponents(TArray<UCustomizableSkeletalComponent*> Components, bool bIgnoreCloseDist = false, bool bForceHighPriority = false);
-
-	UFUNCTION()
-	void OnMutableInstanceUpdated(const FUpdateContext& Result);
+	void InitialUpdateMutableComponents(TArray<UCustomizableSkeletalComponent*> Components, bool bIgnoreCloseDist = false, bool bForceHighPriority = false);
 
 	UFUNCTION()
-	void CallOnAllComponentsUpdated();
+	void OnMutableInstanceInitialUpdated(const FUpdateContext& Result);
 
-	// ~End Update
+	UFUNCTION()
+	void CallOnAllComponentsInitialUpdated();
+
+	// ~End Initial Update
+
+	// Begin 
 	
 public:
 
