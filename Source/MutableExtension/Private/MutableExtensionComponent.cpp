@@ -1,15 +1,15 @@
 ﻿// Copyright (c) Jared Taylor. All Rights Reserved
 
 
-#include "MutableInitializationComponent.h"
+#include "MutableExtensionComponent.h"
 
 #include "MutableFunctionLib.h"
 #include "MuCO/CustomizableSkeletalComponent.h"
 
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(MutableInitializationComponent)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MutableExtensionComponent)
 
-UMutableInitializationComponent::UMutableInitializationComponent()
+UMutableExtensionComponent::UMutableExtensionComponent()
 	: bHasCompletedInitialization(false)
 	, bHasCompletedUpdate(false)
 {
@@ -18,7 +18,7 @@ UMutableInitializationComponent::UMutableInitializationComponent()
 	SetIsReplicatedByDefault(false);
 }
 
-void UMutableInitializationComponent::InitializeMutableComponents(TArray<UCustomizableSkeletalComponent*> Components)
+void UMutableExtensionComponent::InitializeMutableComponents(TArray<UCustomizableSkeletalComponent*> Components)
 {
 	if (!ensureAlways(OnAllInstancesInitialized.IsBound()))
 	{
@@ -52,7 +52,7 @@ void UMutableInitializationComponent::InitializeMutableComponents(TArray<UCustom
 	}
 }
 
-void UMutableInitializationComponent::OnMutableInstanceInitialized(UCustomizableObjectInstance* Instance)
+void UMutableExtensionComponent::OnMutableInstanceInitialized(UCustomizableObjectInstance* Instance)
 {
 	if (InstancesPendingInitialization.Contains(Instance))
 	{
@@ -67,7 +67,7 @@ void UMutableInitializationComponent::OnMutableInstanceInitialized(UCustomizable
 	}
 }
 
-void UMutableInitializationComponent::CallOnAllInstancesInitialized()
+void UMutableExtensionComponent::CallOnAllInstancesInitialized()
 {
 	// Delay by a frame, or it can crash, it isn't fully completed
 	FTimerDelegate Delegate;
@@ -79,7 +79,7 @@ void UMutableInitializationComponent::CallOnAllInstancesInitialized()
 	GetWorld()->GetTimerManager().SetTimerForNextTick(Delegate);
 }
 
-void UMutableInitializationComponent::UpdateMutableComponents(TArray<UCustomizableSkeletalComponent*> Components,
+void UMutableExtensionComponent::UpdateMutableComponents(TArray<UCustomizableSkeletalComponent*> Components,
 	bool bIgnoreCloseDist, bool bForceHighPriority)
 {
 	if (!ensureAlways(OnAllInstancesInitialized.IsBound()))
@@ -103,7 +103,7 @@ void UMutableInitializationComponent::UpdateMutableComponents(TArray<UCustomizab
 	}
 }
 
-void UMutableInitializationComponent::OnMutableInstanceUpdated(const FUpdateContext& Result)
+void UMutableExtensionComponent::OnMutableInstanceUpdated(const FUpdateContext& Result)
 {
 	check(Result.Instance);
 	
@@ -118,7 +118,7 @@ void UMutableInitializationComponent::OnMutableInstanceUpdated(const FUpdateCont
 	}
 }
 
-void UMutableInitializationComponent::CallOnAllComponentsUpdated()
+void UMutableExtensionComponent::CallOnAllComponentsUpdated()
 {
 	// Delay by a frame, or it can crash, it isn't fully completed
 	FTimerDelegate Delegate;
@@ -130,13 +130,13 @@ void UMutableInitializationComponent::CallOnAllComponentsUpdated()
 	GetWorld()->GetTimerManager().SetTimerForNextTick(Delegate);
 }
 
-void UMutableInitializationComponent::Initialize()
+void UMutableExtensionComponent::Initialize()
 {
 	InstancesPendingInitialization.Reset();
 	InstancesPendingUpdate.Reset();
 }
 
-void UMutableInitializationComponent::Deinitialize()
+void UMutableExtensionComponent::Deinitialize()
 {
 	InstancesPendingInitialization.Empty();		// Clear from memory also
 	InstancesPendingUpdate.Empty();				// Clear from memory also

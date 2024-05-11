@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "MutableInitializationComponent.generated.h"
+#include "MutableExtensionComponent.generated.h"
 
 struct FUpdateContext;
 class UCustomizableObjectInstance;
@@ -18,12 +18,12 @@ DECLARE_DYNAMIC_DELEGATE(FOnMutableExtensionSimpleDelegate);
  * initially spawned and wanting to ensure they all follow correct pathing (mutable init is a nightmare)
  */
 UCLASS()
-class MUTABLEEXTENSION_API UMutableInitializationComponent final : public UActorComponent
+class MUTABLEEXTENSION_API UMutableExtensionComponent final : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
-	UMutableInitializationComponent();
+	UMutableExtensionComponent();
 	
 public:
 	// Begin Initialization
