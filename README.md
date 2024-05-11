@@ -100,6 +100,9 @@ TArray<UCustomizableSkeletalComponent*> AMyCharacter::GatherMutableMeshesToIniti
 
 ## Changelog
 
+### 1.2.0
+* Refactor `MutableInitializationComponent` ➜ `MutableExtensionComponent`
+
 ### 1.1.0
 * Change to `UActorComponent` instead of Subsystem
 
