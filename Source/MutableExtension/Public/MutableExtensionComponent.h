@@ -11,11 +11,18 @@ class UCustomizableObjectInstance;
 class UCustomizableSkeletalComponent;
 
 DECLARE_DYNAMIC_DELEGATE(FOnMutableExtensionSimpleDelegate);
+DECLARE_DYNAMIC_DELEGATE_OneParam(FOnMutableExtensionUpdateDelegate, UCustomizableObjectInstance*, Instance);
 
 /**
  * Handler for initialization of Mutable components
  * General use-case is a character with various mutable components wanting to initialize after they are
  * initially spawned and wanting to ensure they all follow correct pathing (mutable init is a nightmare)
+ *
+ * INITIALIZATION FLOW:
+ * [ On My Character Ready ] ➜ InitializeMutableComponents() ➜ InitialUpdateMutableComponents()
+ *
+ * RUNTIME FLOW: 
+ * [ When Mesh Changed]  ➜ RuntimeUpdateMutableComponents()
  */
 UCLASS()
 class MUTABLEEXTENSION_API UMutableExtensionComponent final : public UActorComponent
