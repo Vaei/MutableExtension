@@ -41,7 +41,7 @@ void UMutableExtensionComponent::InitializeMutableComponents(TArray<UCustomizabl
 			if (Status == ESkeletalMeshStatus::NotGenerated)
 			{
 				InstancesPendingInitialization.AddUnique(Component->CustomizableObjectInstance);
-				Component->CustomizableObjectInstance->InitialUpdatedDelegate.AddDynamic(this, &ThisClass::OnMutableInstanceInitialized);
+				Component->CustomizableObjectInstance->UpdatedDelegate.AddDynamic(this, &ThisClass::OnMutableInstanceInitialized);
 			}
 		}
 	}
@@ -59,7 +59,7 @@ void UMutableExtensionComponent::OnMutableInstanceInitialized(UCustomizableObjec
 		InstancesPendingInitialization.Remove(Instance);
 	}
 
-	Instance->InitialUpdatedDelegate.RemoveDynamic(this, &ThisClass::OnMutableInstanceInitialized);
+	Instance->UpdatedDelegate.RemoveDynamic(this, &ThisClass::OnMutableInstanceInitialized);
 
 	if (InstancesPendingInitialization.Num() == 0)
 	{
