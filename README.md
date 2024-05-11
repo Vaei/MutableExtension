@@ -8,9 +8,15 @@ C++ Required.
 
 ## Pre-Setup
 
-It requires either making an engine source change or copy/pasting the plugin out of the engine into your project.
+Mutable in it's current state lacks the information we need to initialize altogether.
 
-In `CustomizableObjectInstance.h` find `struct FUpdateContext` and at the bottom add this:
+This has been pull requested to the engine here: https://github.com/EpicGames/UnrealEngine/pull/11859
+
+You must either make the same changes in the engine source code or by copy/pasting the plugin out of the engine and into your project and changing it there.
+
+If for some reason you can't read the commit, the information is here:
+
+In `CustomizableObjectInstance.h` find `struct FUpdateContext` and add this as a struct member:
 
 ```cpp
 /** When iterating multiple instances with callback we need to identify which instance was updated */
@@ -18,17 +24,15 @@ UPROPERTY()
 UCustomizableObjectInstance* Instance;
 ```
 
-Then in `CustomizableObjectSystem.cpp` find `FinishUpdateGlobal()` and change it so it does this:
+Then in `CustomizableObjectSystem.cpp` find `FinishUpdateGlobal()` and add the line:
 ```cpp
 	FUpdateContext ContextPublic;
 	ContextPublic.UpdateResult = Context->UpdateResult;
-	ContextPublic.Instance = Instance;  // We introduce this line
+	ContextPublic.Instance = Instance;  // We add this line only (the rest are so you can locate the correct line)
 		
 	Context->UpdateCallback.ExecuteIfBound(ContextPublic);
 	Context->UpdateNativeCallback.Broadcast(ContextPublic);
 ```
-
-This has been pull requested to the engine here: https://github.com/EpicGames/UnrealEngine/pull/11859
 
 ## Setup
 
@@ -45,7 +49,7 @@ UFUNCTION()
 virtual void OnMutableMeshesGenerated();
 
 UFUNCTION()
-virtual void OnMutableMeshesUpdated();
+virtual void OnMutableMeshesInitialUpdated();
 
 
 virtual TArray<UCustomizableSkeletalComponent*> GatherMutableMeshesToInitialize() const;
@@ -85,6 +89,7 @@ void AMyCharacter::OnMutableMeshesInitialUpdated()
 		// We don't care if something we didn't assign an instance for failed
 		if (Component->CustomizableObjectInstance)
 		{
+			// But we do care if the instance errored or hasn't yet generated
 			bool bValid;
 			ESkeletalMeshStatus Status = UMutableFunctionLib::GetMutableComponentStatus(Component, bValid);
 			ensure(bValid);
@@ -106,7 +111,7 @@ This usage is a suggestion rather than a requirement.
 Add these functions to your header:
 
 ```cpp
-	UFUNCTION(BlueprintCallable, Category="Titan|Mutable")
+	UFUNCTION(BlueprintCallable, Category="Mutable")
 	void RequestMutableRuntimeUpdate(UCustomizableSkeletalComponent* MutableComponent, bool bIgnoreCloseDist = false, bool bForceHighPriority = false);
 
 	UFUNCTION()
@@ -146,11 +151,11 @@ void AMyCharacter::RequestMutableRuntimeUpdate(USkeletalMeshComponent* OwningCom
 		EMutableExtensionRuntimeUpdateError Error;
 		if (!MutableExtension->RuntimeUpdateMutableComponent(OwningComponent, MutableComponent, Error, bIgnoreCloseDist, bForceHighPriority))
 		{
-			if (TitanCharacterCVars::MutableRuntimeErrorDebugLevel > 0)
+			if (MutableRuntimeErrorDebugLevel > 0)
 			{
-				const bool bVerbose = TitanCharacterCVars::MutableRuntimeErrorDebugLevel > 1;
+				const bool bVerbose = MutableRuntimeErrorDebugLevel > 1;
 				FString ErrorString = UMutableFunctionLib::ParseRuntimeUpdateError(Error, bVerbose);
-				UE_LOG(LogTitanCharacter, Error, TEXT("[ %s ] : %s"), *FString(__FUNCTION__), *ErrorString);
+				UE_LOG(LogMyCharacter, Error, TEXT("[ %s ] : %s"), *FString(__FUNCTION__), *ErrorString);
 			}
 		}
 	}
@@ -159,7 +164,7 @@ void AMyCharacter::RequestMutableRuntimeUpdate(USkeletalMeshComponent* OwningCom
 void AMyCharacter::OnMutableRuntimeUpdateFinished(const FMutablePendingRuntimeUpdate& MutableUpdate)
 {
 	// Do some stuff here, maybe you want to set some UMaterialInstanceDynamic on the MutableUpdate->OwningComponent?
-	
+
 #if ENABLE_DRAW_DEBUG
 	if (bMutableRuntimeUpdateDrawDebugValues)
 	{
