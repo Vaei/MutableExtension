@@ -35,6 +35,8 @@ public:
 
 	void ResetMutableInitialization();
 
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 public:
 	// Begin Initialization
 

@@ -20,14 +20,25 @@ UMutableExtensionComponent::UMutableExtensionComponent()
 
 void UMutableExtensionComponent::ResetMutableInitialization()
 {
+	// Initialization
 	bHasRequestedInitialize = false;
 	InstancesPendingInitialization.Reset();
 	CachedInitializingInstances.Reset();
 	CachedInitializingComponents.Reset();
-	if (OnMutableInitialized.IsBound())
+	if (OnMutableInitialized.IsBoundToObjectEvenIfUnreachable(this))
 	{
 		OnMutableInitialized.Unbind();
 	}
+
+	// Runtime Update
+	InstancesPendingRuntimeUpdate.Reset();
+}
+
+void UMutableExtensionComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	ResetMutableInitialization();
+	
+	Super::EndPlay(EndPlayReason);
 }
 
 FOnMutableExtensionSimpleDelegate& UMutableExtensionComponent::RequestMutableInitialization(
@@ -69,13 +80,25 @@ void UMutableExtensionComponent::BeginMutableInitialization()
 			return;
 		}
 		
-		FDelegateHandle Handle = Instance->UpdatedNativeDelegate.AddLambda([&](UCustomizableObjectInstance* UpdatedInstance)
+		FDelegateHandle Delegate = Instance->UpdatedNativeDelegate.AddWeakLambda(this, [&](UCustomizableObjectInstance* UpdatedInstance)
 		{
-			InstancesPendingInitialization.Remove(UpdatedInstance);
-			if (InstancesPendingInitialization.Num() == 0)
+#if WITH_EDITOR
+			// This can cause an edge case when the instance updates during editor time
+			if (!IsValid(this))
 			{
-				UpdatedInstance->UpdatedNativeDelegate.Remove(Handle);
-				OnInitializationCompleted();
+				return;
+			}
+#endif
+			
+			UpdatedInstance->UpdatedNativeDelegate.Remove(Delegate);
+
+			if (InstancesPendingInitialization.Contains(UpdatedInstance))
+			{
+				InstancesPendingInitialization.Remove(UpdatedInstance);
+				if (InstancesPendingInitialization.Num() == 0)
+				{
+					OnInitializationCompleted();
+				}
 			}
 		});
 		Instance->UpdateSkeletalMeshAsync(true, true);
@@ -162,10 +185,13 @@ void UMutableExtensionComponent::OnMutableInstanceRuntimeUpdateCompleted(const F
 
 	if (FMutablePendingRuntimeUpdate* PendingUpdate = InstancesPendingRuntimeUpdate.Find(Result.Instance))
 	{
-		PendingUpdate->UpdateResult = Result.UpdateResult;
+		if (InstancesPendingRuntimeUpdate.Contains(Result.Instance))
+		{
+			PendingUpdate->UpdateResult = Result.UpdateResult;
 
-		InstancesPendingRuntimeUpdate.Remove(Result.Instance);
-		CallOnComponentRuntimeUpdateCompleted(*PendingUpdate);
+			InstancesPendingRuntimeUpdate.Remove(Result.Instance);
+			CallOnComponentRuntimeUpdateCompleted(*PendingUpdate);
+		}
 	}
 }
 
