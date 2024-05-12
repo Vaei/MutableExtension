@@ -21,7 +21,7 @@ UMutableExtensionComponent::UMutableExtensionComponent()
 	SetIsReplicatedByDefault(false);
 }
 
-void UMutableExtensionComponent::InitializeMutableComponents(TArray<UCustomizableSkeletalComponent*> Components)
+void UMutableExtensionComponent::InitializeMutableComponents(TArray<UCustomizableSkeletalComponent*> Components, bool bInternalFromPreInit)
 {
 	if (!ensureAlways(OnAllInstancesInitializeCompleted.IsBound()))
 	{
@@ -29,7 +29,36 @@ void UMutableExtensionComponent::InitializeMutableComponents(TArray<UCustomizabl
 	}
 
 	InstancesPendingInitialization.Reset();
-	
+	ComponentsPendingPreInitialization.Reset();
+
+	// Run pre-initialization first to ensure all components are ready to initialize
+	for (UCustomizableSkeletalComponent* Component : Components)
+	{
+		if (ComponentsPendingPreInitialization.Contains(Component))
+		{
+			continue;
+		}
+
+		if (!Component->IsCustomizableObjectReady())
+		{
+			if (!Component->TryMakeCustomizableObjectReady())
+			{
+				// Listen for the instance generating
+				ComponentsPendingPreInitialization.Add(Component);
+				Component->CustomizableObjectReadyDelegate.BindUObject(this, &ThisClass::OnMutableComponentPreInitializeCompleted);
+			}
+		}
+	}
+
+	if (ComponentsPendingPreInitialization.Num() > 0)
+	{
+		// Not supported, fix whatever caused it
+		check(!bHasCompletedInitialization);
+		
+		CachedPreInitializeComponents = Components;
+		return;
+	}
+
 	for (UCustomizableSkeletalComponent* Component : Components)
 	{
 		if (!Component->CustomizableObjectInstance)
@@ -37,6 +66,8 @@ void UMutableExtensionComponent::InitializeMutableComponents(TArray<UCustomizabl
 			continue;
 		}
 		
+		check(Component->IsCustomizableObjectReady());
+
 		bool bValid;
 		ESkeletalMeshStatus Status = UMutableFunctionLib::GetMutableComponentStatus(Component, bValid);
 		if (bValid)
@@ -45,7 +76,7 @@ void UMutableExtensionComponent::InitializeMutableComponents(TArray<UCustomizabl
 			{
 				if (!InstancesPendingInitialization.Contains(Component->CustomizableObjectInstance))
 				{
-					// Listen for the mesh generating
+					// Listen for the instance generating
 					InstancesPendingInitialization.Add(Component->CustomizableObjectInstance);
 					Component->CustomizableObjectInstance->UpdatedDelegate.AddDynamic(this, &ThisClass::OnMutableInstanceInitializeCompleted);
 
@@ -60,6 +91,23 @@ void UMutableExtensionComponent::InitializeMutableComponents(TArray<UCustomizabl
 	if (InstancesPendingInitialization.Num() == 0)
 	{
 		CallOnAllInstancesInitialized();
+	}
+}
+
+void UMutableExtensionComponent::OnMutableComponentPreInitializeCompleted(UCustomizableSkeletalComponent* Component)
+{
+	if (ComponentsPendingPreInitialization.Contains(Component))
+	{
+		check(Component->IsCustomizableObjectReady());
+		ComponentsPendingPreInitialization.Remove(Component);
+
+		Component->CustomizableObjectReadyDelegate.Unbind();
+
+		if (ComponentsPendingPreInitialization.Num() == 0)
+		{
+			InitializeMutableComponents(CachedPreInitializeComponents, true);
+			CachedPreInitializeComponents.Empty();
+		}
 	}
 }
 

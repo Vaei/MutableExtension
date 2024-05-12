@@ -40,13 +40,24 @@ public:
 	bool bHasCompletedInitialization;
 
 	FOnMutableExtensionSimpleDelegate OnAllInstancesInitializeCompleted;
+
+	/** These do not have valid descriptor hashes or object instance usage yet */
+	UPROPERTY()
+	TArray<UCustomizableSkeletalComponent*> ComponentsPendingPreInitialization;
+
+	UPROPERTY()
+	TArray<UCustomizableSkeletalComponent*> CachedPreInitializeComponents;
 	
 	UPROPERTY()
 	TArray<UCustomizableObjectInstance*> InstancesPendingInitialization;
 	
 public:
-	void InitializeMutableComponents(TArray<UCustomizableSkeletalComponent*> Components);
+	UFUNCTION()
+	void InitializeMutableComponents(TArray<UCustomizableSkeletalComponent*> Components, bool bInternalFromPreInit = false);
 
+	UFUNCTION()
+	void OnMutableComponentPreInitializeCompleted(UCustomizableSkeletalComponent* Component);
+	
 	UFUNCTION()
 	void OnMutableInstanceInitializeCompleted(UCustomizableObjectInstance* Instance);
 
