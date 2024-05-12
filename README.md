@@ -1,5 +1,9 @@
 # Mutable Extension
 
+THIS IS NOT SUITABLE FOR PUBLIC USE. ENGINE CHANGES ARE REQUIRED THAT ARE TOO CUMBERSOME TO CONTINUE DOCUMENTING.
+
+DO NOT USE THIS. THIS README IS COMPLETELY OUTDATED NOW.
+
 Solving how to initialize a character adequately with Mutable was a nightmare and required multiple workarounds.
 
 This plugin is the result of finessing the initialization routing.
@@ -162,6 +166,11 @@ void AMyCharacter::OnMutableRuntimeUpdateFinished(const FMutablePendingRuntimeUp
 ```
 
 ## Changelog
+
+### 3.0.0
+* Reworked initialization completely from scratch
+* Engine changes are required, however these have become too cumbersome to update any further
+
 
 ### 2.2.2
 * `OnMutableInstanceRuntimeUpdateCompleted` now passes out the update result

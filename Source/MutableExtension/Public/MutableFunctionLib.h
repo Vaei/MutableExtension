@@ -31,7 +31,7 @@ public:
 	static bool IsMutableMeshValidToUpdate(const UCustomizableSkeletalComponent* MutableMesh);
 
 	/** Must always call IsMutableMeshValidToUpdate() beforehand */
-	static void UpdateMutableMesh(const UCustomizableSkeletalComponent* MutableMesh,
+	static void UpdateMutableMesh(UCustomizableSkeletalComponent* MutableMesh,
 		bool bIgnoreCloseDist = false, bool bForceHighPriority = false);
 
 	/** Must always call IsMutableMeshValidToUpdate() beforehand */

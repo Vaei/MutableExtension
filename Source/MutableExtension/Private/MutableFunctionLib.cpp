@@ -42,13 +42,10 @@ void UMutableFunctionLib::ErrorOnFailedValidation(const UCustomizableSkeletalCom
 
 bool UMutableFunctionLib::IsMutableMeshValidToUpdate(const UCustomizableSkeletalComponent* MutableMesh)
 {
-	UCustomizableInstancePrivate* PrivateInstance = MutableMesh && MutableMesh->CustomizableObjectInstance ?
-		MutableMesh->CustomizableObjectInstance->GetPrivate() : nullptr;
-
-	return PrivateInstance ? PrivateInstance->SkeletalMeshStatus == ESkeletalMeshStatus::Success : false;
+	return MutableMesh->IsCustomizableObjectReady();
 }
 
-void UMutableFunctionLib::UpdateMutableMesh(const UCustomizableSkeletalComponent* MutableMesh, bool bIgnoreCloseDist,
+void UMutableFunctionLib::UpdateMutableMesh(UCustomizableSkeletalComponent* MutableMesh, bool bIgnoreCloseDist,
 	bool bForceHighPriority)
 {
 	// We do not return true or false because the delegate from UpdateSkeletalMeshAsyncResult() will be executed
@@ -58,6 +55,15 @@ void UMutableFunctionLib::UpdateMutableMesh(const UCustomizableSkeletalComponent
 	{
 		ErrorOnFailedValidation(MutableMesh);
 		return;
+	}
+
+	if (!MutableMesh->HasCustomizableObjectInstanceUsage())
+	{
+		MutableMesh->CreateCustomizableObjectInstanceUsage();
+		if (!MutableMesh->HasCustomizableObjectInstanceUsage())
+		{
+			return;
+		}
 	}
 	
 	MutableMesh->CustomizableObjectInstance->UpdateSkeletalMeshAsync(bIgnoreCloseDist, bForceHighPriority);
@@ -234,11 +240,9 @@ FString UMutableFunctionLib::GatherMutableDataDump(const AActor* ForActor)
 		Dump += FString::Printf(TEXT("EXTENSION COMP: { %s }\n"), *GetNameSafe(ExtensionComp));
 		if (ExtensionComp)
 		{
-			Dump += FString::Printf(TEXT("Has Completed Initialization: { %s }\n"), *LexToString(ExtensionComp->bHasCompletedInitialization));
-			Dump += FString::Printf(TEXT("Has Completed Initial Update: { %s }\n"), *LexToString(ExtensionComp->bHasCompletedInitialUpdate));
-			Dump += FString::Printf(TEXT("Instances Pending Initialization: { %d }\n"), ExtensionComp->InstancesPendingInitialization.Num());
-			Dump += FString::Printf(TEXT("Instances Pending Initial Update: { %d }\n"), ExtensionComp->InstancesPendingInitialUpdate.Num());
-			Dump += FString::Printf(TEXT("Instances Pending Runtime Update: { %d }\n"), ExtensionComp->InstancesPendingRuntimeUpdate.Num());
+			Dump += FString::Printf(TEXT("Has Completed Initialization: { %s }\n"), *LexToString(ExtensionComp->HasMutableInitialized()));
+			Dump += FString::Printf(TEXT("Instances Pending Initialization: { %d }\n"), ExtensionComp->GetMutableInitializingInstances().Num());
+			Dump += FString::Printf(TEXT("Instances Pending Runtime Update: { %d }\n"), ExtensionComp->GetInstancesPendingRuntimeUpdate().Num());
 		}
 
 		// Mutable comp data
@@ -274,9 +278,8 @@ FString UMutableFunctionLib::GatherMutableDataDump(const AActor* ForActor)
 					Dump += FString::Printf(TEXT("Hidden In Game: { %s }\n"), *LexToString(bHiddenInGame));
 					Dump += FString::Printf(TEXT("Visible: { %s }\n"), *LexToString(MeshComponent->IsVisible()));
 					Dump += FString::Printf(TEXT("Num Materials: { %d }\n"), MeshComponent->GetNumMaterials());
-					Dump += FString::Printf(TEXT("Pending Init: { %s }\n"), *LexToString(ExtensionComp->InstancesPendingInitialization.Contains(Instance)));
-					Dump += FString::Printf(TEXT("Pending Init Update: { %s }\n"), *LexToString(ExtensionComp->InstancesPendingInitialUpdate.Contains(Instance)));
-					Dump += FString::Printf(TEXT("Pending Runtime Update: { %s }\n"), *LexToString(ExtensionComp->InstancesPendingRuntimeUpdate.Contains(Instance)));
+					Dump += FString::Printf(TEXT("Pending Init: { %s }\n"), *LexToString(ExtensionComp->GetMutableInitializingInstances().Contains(Instance)));
+					Dump += FString::Printf(TEXT("Pending Runtime Update: { %s }\n"), *LexToString(ExtensionComp->GetInstancesPendingRuntimeUpdate().Contains(Instance)));
 				}
 			}
 		}
@@ -289,12 +292,6 @@ FString UMutableFunctionLib::GatherMutableDataDump(const AActor* ForActor)
 	{
 		Dump += "-- Actor is not valid --\n";
 	}
-	
-	// Iterates all mutable components
-	// Parent skeletal mesh
-	// Parent skeletal mesh rendering data
-	// Success state
-	// Instance
 
 	Dump += HeaderFooter;
 	return Dump;

@@ -32,68 +32,65 @@ class MUTABLEEXTENSION_API UMutableExtensionComponent final : public UActorCompo
 
 public:
 	UMutableExtensionComponent();
-	
+
+	void ResetMutableInitialization();
+
 public:
 	// Begin Initialization
 
-	UPROPERTY(Transient, DuplicateTransient)
-	bool bHasCompletedInitialization;
+	FOnMutableExtensionSimpleDelegate& RequestMutableInitialization(const TArray<UCustomizableSkeletalComponent*>& MutableComponents);
 
-	FOnMutableExtensionSimpleDelegate OnAllInstancesInitializeCompleted;
-	
+	const TArray<UCustomizableSkeletalComponent*>& GetMutableInitializingComponents() const { return CachedInitializingComponents; };
+	const TArray<UCustomizableObjectInstance*>& GetMutableInitializingInstances() const { return CachedInitializingInstances; };
+
+	/** @return True if nothing is pending initialization and RequestMutableInitialization() was ever called */
+	bool HasMutableInitialized() const { return bHasRequestedInitialize && InstancesPendingInitialization.Num() == 0; }
+
+private:
+	FOnMutableExtensionSimpleDelegate OnMutableInitialized;
+
 	UPROPERTY()
 	TArray<UCustomizableObjectInstance*> InstancesPendingInitialization;
-	
-public:
-	void InitializeMutableComponents(TArray<UCustomizableSkeletalComponent*> Components);
 
-	UFUNCTION()
-	void OnMutableInstanceInitializeCompleted(UCustomizableObjectInstance* Instance);
-
-	UFUNCTION()
-	void CallOnAllInstancesInitialized();
-
-	// ~End Initialization
-
-public:
-	// Begin Initial Update
-
-	UPROPERTY(Transient, DuplicateTransient)
-	bool bHasCompletedInitialUpdate;
-
-	FOnMutableExtensionSimpleDelegate OnAllComponentsInitialUpdateCompleted;
+	UPROPERTY()
+	TArray<UCustomizableObjectInstance*> CachedInitializingInstances;
 	
 	UPROPERTY()
-	TArray<UCustomizableObjectInstance*> InstancesPendingInitialUpdate;
+	TArray<UCustomizableSkeletalComponent*> CachedInitializingComponents;
 
-	void InitialUpdateMutableComponents(TArray<UCustomizableSkeletalComponent*> Components, bool bIgnoreCloseDist = false, bool bForceHighPriority = false);
-
-	UFUNCTION()
-	void OnMutableInstanceInitialUpdateCompleted(const FUpdateContext& Result);
+	UPROPERTY()
+	bool bHasRequestedInitialize = false;
 
 	UFUNCTION()
-	void CallOnAllComponentsInitialUpdated();
+	void BeginMutableInitialization();
+	
+	void OnInitializationCompleted();
 
-	// ~End Initial Update
+	// ~End Initialization
 
 public:
 	// Begin Runtime Update
 
 	FOnMutableExtensionUpdateDelegate OnComponentRuntimeUpdateCompleted;
 
-	UPROPERTY()
-	TMap<UCustomizableObjectInstance*, FMutablePendingRuntimeUpdate> InstancesPendingRuntimeUpdate;
-
-	/** @return True if update was requested (was not aborted) */
 	bool RuntimeUpdateMutableComponent(USkeletalMeshComponent* OwningComponent, UCustomizableSkeletalComponent* Component, EMutableExtensionRuntimeUpdateError& Error, bool bIgnoreCloseDist = false, bool bForceHighPriority = false);
 
 	bool IsPendingUpdate(const UCustomizableSkeletalComponent* Component) const;
 	bool IsPendingUpdate(const UCustomizableObjectInstance* Instance) const;
 
 	/** @return INCOMPLETE Pending Runtime Update if it exists, otherwise nullptr. */
-	const FMutablePendingRuntimeUpdate* GetIncompletePendingRuntimeUpdate(const UCustomizableSkeletalComponent* Component) const;
-	const FMutablePendingRuntimeUpdate* GetIncompletePendingRuntimeUpdate(const UCustomizableObjectInstance* Instance) const;
-	
+	const FMutablePendingRuntimeUpdate* GetInstancePendingRuntimeUpdate(const UCustomizableSkeletalComponent* Component) const;
+
+	/** @return INCOMPLETE Pending Runtime Update if it exists, otherwise nullptr. */
+	const FMutablePendingRuntimeUpdate* GetInstancePendingRuntimeUpdate(const UCustomizableObjectInstance* Instance) const;
+
+	const TMap<UCustomizableObjectInstance*, FMutablePendingRuntimeUpdate>& GetInstancesPendingRuntimeUpdate() const { return InstancesPendingRuntimeUpdate; };
+
+private:
+
+	UPROPERTY()
+	TMap<UCustomizableObjectInstance*, FMutablePendingRuntimeUpdate> InstancesPendingRuntimeUpdate;
+
 	UFUNCTION()
 	void OnMutableInstanceRuntimeUpdateCompleted(const FUpdateContext& Result);
 	
@@ -101,13 +98,4 @@ public:
 	void CallOnComponentRuntimeUpdateCompleted(const FMutablePendingRuntimeUpdate& PendingUpdate) const;
 
 	// ~End Runtime Update
-	
-public:
-
-	// Begin Initialization - You probably don't need to use these
-	
-	void Initialize();
-	void Deinitialize();
-	
-	// ~End Initialization
 };

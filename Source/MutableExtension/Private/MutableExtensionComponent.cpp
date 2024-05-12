@@ -1,4 +1,4 @@
-﻿// Copyright (c) Jared Taylor. All Rights Reserved
+// Copyright (c) Jared Taylor. All Rights Reserved
 
 
 #include "MutableExtensionComponent.h"
@@ -6,153 +6,90 @@
 #include "MutableFunctionLib.h"
 #include "MuCO/CustomizableObjectInstancePrivate.h"
 #include "MuCO/CustomizableSkeletalComponent.h"
-#include "MuCO/CustomizableObjectInstanceDescriptor.h"
 #include "MuCO/CustomizableObjectSystemPrivate.h"
 
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MutableExtensionComponent)
 
 UMutableExtensionComponent::UMutableExtensionComponent()
-	: bHasCompletedInitialization(false)
-	, bHasCompletedInitialUpdate(false)
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 	SetIsReplicatedByDefault(false);
 }
 
-void UMutableExtensionComponent::InitializeMutableComponents(TArray<UCustomizableSkeletalComponent*> Components)
+void UMutableExtensionComponent::ResetMutableInitialization()
 {
-	if (!ensureAlways(OnAllInstancesInitializeCompleted.IsBound()))
-	{
-		return;
-	}
-
+	bHasRequestedInitialize = false;
 	InstancesPendingInitialization.Reset();
-	
-	for (UCustomizableSkeletalComponent* Component : Components)
+	CachedInitializingInstances.Reset();
+	CachedInitializingComponents.Reset();
+	if (OnMutableInitialized.IsBound())
 	{
-		if (!Component->CustomizableObjectInstance)
-		{
-			continue;
-		}
-		
-		bool bValid;
-		ESkeletalMeshStatus Status = UMutableFunctionLib::GetMutableComponentStatus(Component, bValid);
-		if (bValid)
-		{
-			if (Status == ESkeletalMeshStatus::NotGenerated && Component->CustomizableObjectInstance->CanUpdateInstance())
-			{
-				if (!InstancesPendingInitialization.Contains(Component->CustomizableObjectInstance))
-				{
-					// Listen for the mesh generating
-					InstancesPendingInitialization.Add(Component->CustomizableObjectInstance);
-					Component->CustomizableObjectInstance->UpdatedDelegate.AddDynamic(this, &ThisClass::OnMutableInstanceInitializeCompleted);
+		OnMutableInitialized.Unbind();
+	}
+}
 
-					// There is a bug with mutable where it simply never generates until you exit PIE and re-PIE after first run
-					FMutableInstanceUpdateMap RequestedLODUpdates;
-					Component->CustomizableObjectInstance->GetPrivate()->UpdateInstanceIfNotGenerated(*Component->CustomizableObjectInstance, RequestedLODUpdates);
-				}
+FOnMutableExtensionSimpleDelegate& UMutableExtensionComponent::RequestMutableInitialization(
+	const TArray<UCustomizableSkeletalComponent*>& MutableComponents)
+{
+	ResetMutableInitialization();
+
+	bHasRequestedInitialize = true;
+	
+	for (UCustomizableSkeletalComponent* Component : MutableComponents)
+	{
+		// Ignore any that have no instance assigned by the user
+		UCustomizableObjectInstance* Instance = Component->CustomizableObjectInstance;
+		if (Instance)
+		{
+			Component->CreateCustomizableObjectInstanceUsage();
+
+			CachedInitializingComponents.Add(Component);
+			if (!InstancesPendingInitialization.Contains(Instance))
+			{
+				InstancesPendingInitialization.Add(Instance);
 			}
 		}
 	}
+	
+	CachedInitializingInstances = InstancesPendingInitialization;
 
-	if (InstancesPendingInitialization.Num() == 0)
-	{
-		CallOnAllInstancesInitialized();
-	}
+	GetWorld()->GetTimerManager().SetTimerForNextTick(this, &ThisClass::BeginMutableInitialization);
+	
+	return OnMutableInitialized;
 }
 
-void UMutableExtensionComponent::OnMutableInstanceInitializeCompleted(UCustomizableObjectInstance* Instance)
+void UMutableExtensionComponent::BeginMutableInitialization()
 {
-	if (InstancesPendingInitialization.Contains(Instance))
+	for (UCustomizableObjectInstance* Instance : CachedInitializingInstances)
 	{
-		InstancesPendingInitialization.Remove(Instance);
-
-		Instance->UpdatedDelegate.RemoveDynamic(this, &ThisClass::OnMutableInstanceInitializeCompleted);
-
 		if (InstancesPendingInitialization.Num() == 0)
 		{
-			CallOnAllInstancesInitialized();
-		}
-	}
-}
-
-void UMutableExtensionComponent::CallOnAllInstancesInitialized()
-{
-	// Delay by a frame, or it can crash, it isn't fully completed
-	FTimerDelegate Delegate;
-	Delegate.BindLambda([&]()
-	{
-		bHasCompletedInitialization = true;
-		OnAllInstancesInitializeCompleted.ExecuteIfBound();
-	});
-	GetWorld()->GetTimerManager().SetTimerForNextTick(Delegate);
-}
-
-void UMutableExtensionComponent::InitialUpdateMutableComponents(TArray<UCustomizableSkeletalComponent*> Components,
-	bool bIgnoreCloseDist, bool bForceHighPriority)
-{
-	if (!ensureAlways(OnAllComponentsInitialUpdateCompleted.IsBound()))
-	{
-		return;
-	}
-	
-	for (UCustomizableSkeletalComponent* Component : Components)
-	{
-		if (!Component || !Component->CustomizableObjectInstance)
-		{
-			// IsMutableMeshValidToUpdate checks this, but we don't want to fail an ensure
-			// unless SkeletalMeshStatus did not succeed (generation failed or has not yet completed)
-			continue;
+			return;
 		}
 		
-		if (!ensure(UMutableFunctionLib::IsMutableMeshValidToUpdate(Component)))
+		FDelegateHandle Handle = Instance->UpdatedNativeDelegate.AddLambda([&](UCustomizableObjectInstance* UpdatedInstance)
 		{
-			continue;
-		}
-
-		if (!InstancesPendingInitialUpdate.Contains(Component->CustomizableObjectInstance))
-		{
-			InstancesPendingInitialUpdate.Add(Component->CustomizableObjectInstance);
-
-			FInstanceUpdateDelegate Delegate;
-			Delegate.BindDynamic(this, &ThisClass::OnMutableInstanceInitialUpdateCompleted);
-			UMutableFunctionLib::UpdateMutableMesh_Callback(Component, Delegate, bIgnoreCloseDist, bForceHighPriority);
-		}
-	}
-
-	if (InstancesPendingInitialUpdate.Num() == 0)
-	{
-		CallOnAllComponentsInitialUpdated();
+			InstancesPendingInitialization.Remove(UpdatedInstance);
+			if (InstancesPendingInitialization.Num() == 0)
+			{
+				UpdatedInstance->UpdatedNativeDelegate.Remove(Handle);
+				OnInitializationCompleted();
+			}
+		});
+		Instance->UpdateSkeletalMeshAsync(true, true);
 	}
 }
 
-void UMutableExtensionComponent::OnMutableInstanceInitialUpdateCompleted(const FUpdateContext& Result)
+void UMutableExtensionComponent::OnInitializationCompleted()
 {
-	check(Result.Instance);
-	
-	if (InstancesPendingInitialUpdate.Contains(Result.Instance))
+	// Updates are async, so this can be called a second time by another
+	if (OnMutableInitialized.IsBound())
 	{
-		InstancesPendingInitialUpdate.Remove(Result.Instance);
-
-		if (InstancesPendingInitialUpdate.Num() == 0)
-		{
-			CallOnAllComponentsInitialUpdated();
-		}
+		OnMutableInitialized.Execute();
+		OnMutableInitialized.Unbind();
 	}
-}
-
-void UMutableExtensionComponent::CallOnAllComponentsInitialUpdated()
-{
-	// Delay by a frame, or it can crash, it isn't fully completed
-	FTimerDelegate Delegate;
-	Delegate.BindLambda([&]()
-	{
-		bHasCompletedInitialUpdate = true;
-		OnAllComponentsInitialUpdateCompleted.ExecuteIfBound();
-	});
-	GetWorld()->GetTimerManager().SetTimerForNextTick(Delegate);
 }
 
 bool UMutableExtensionComponent::RuntimeUpdateMutableComponent(USkeletalMeshComponent* OwningComponent,
@@ -207,13 +144,13 @@ bool UMutableExtensionComponent::IsPendingUpdate(const UCustomizableObjectInstan
 	return InstancesPendingRuntimeUpdate.Contains(Instance);
 }
 
-const FMutablePendingRuntimeUpdate* UMutableExtensionComponent::GetIncompletePendingRuntimeUpdate(
+const FMutablePendingRuntimeUpdate* UMutableExtensionComponent::GetInstancePendingRuntimeUpdate(
 	const UCustomizableSkeletalComponent* Component) const
 {
-	return GetIncompletePendingRuntimeUpdate(Component->CustomizableObjectInstance);
+	return GetInstancePendingRuntimeUpdate(Component->CustomizableObjectInstance);
 }
 
-const FMutablePendingRuntimeUpdate* UMutableExtensionComponent::GetIncompletePendingRuntimeUpdate(
+const FMutablePendingRuntimeUpdate* UMutableExtensionComponent::GetInstancePendingRuntimeUpdate(
 	const UCustomizableObjectInstance* Instance) const
 {
 	return InstancesPendingRuntimeUpdate.Find(Instance);
@@ -241,19 +178,4 @@ void UMutableExtensionComponent::CallOnComponentRuntimeUpdateCompleted(const FMu
 		OnComponentRuntimeUpdateCompleted.ExecuteIfBound(PendingUpdate);
 	});
 	GetWorld()->GetTimerManager().SetTimerForNextTick(Delegate);
-}
-
-void UMutableExtensionComponent::Initialize()
-{
-	InstancesPendingInitialization.Reset();
-	InstancesPendingInitialUpdate.Reset();
-	InstancesPendingRuntimeUpdate.Reset();
-}
-
-void UMutableExtensionComponent::Deinitialize()
-{
-	// Clear from memory also ( Empty() )
-	InstancesPendingInitialization.Empty();		
-	InstancesPendingInitialUpdate.Empty();
-	InstancesPendingRuntimeUpdate.Empty();
 }
