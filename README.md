@@ -172,6 +172,7 @@ void AMyCharacter::OnMutableRuntimeUpdateFinished(const FMutablePendingRuntimeUp
 ### 3.0.1
 * Fixed delegate binding issues esp. during editor time
 * Reset on EndPlay
+* Fixed edge case crash
 
 ### 3.0.0
 * Reworked initialization completely from scratch
