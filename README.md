@@ -4,6 +4,8 @@ THIS IS NOT SUITABLE FOR PUBLIC USE. ENGINE CHANGES ARE REQUIRED THAT ARE TOO CU
 
 DO NOT USE THIS. THIS README IS COMPLETELY OUTDATED NOW.
 
+IF YOU NEED TO USE THIS THEN RAISE AN ISSUE, THERE IS NO POINT UPDATING IT FOR NOBODY ELSE.
+
 Solving how to initialize a character adequately with Mutable was a nightmare and required multiple workarounds.
 
 This plugin is the result of finessing the initialization routing.
