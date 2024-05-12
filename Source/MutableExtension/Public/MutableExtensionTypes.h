@@ -6,6 +6,7 @@
 
 #include "MutableExtensionTypes.generated.h"
 
+enum class EUpdateResult : uint8;
 class UCustomizableSkeletalComponent;
 class UCustomizableObjectInstance;
 
@@ -26,12 +27,11 @@ struct MUTABLEEXTENSION_API FMutablePendingRuntimeUpdate
 	FMutablePendingRuntimeUpdate(
 	UCustomizableObjectInstance* InMutableInstance = nullptr,
 	UCustomizableSkeletalComponent* InMutableComponent = nullptr,
-	USkeletalMeshComponent* InOwningComponent = nullptr)
-		: MutableInstance(InMutableInstance)
-		, MutableComponent(InMutableComponent)
-		, OwningComponent(InOwningComponent)
-	{}
+	USkeletalMeshComponent* InOwningComponent = nullptr);
 
+	UPROPERTY(BlueprintReadOnly, Category="Mutable")
+	EUpdateResult UpdateResult;
+	
 	UPROPERTY(BlueprintReadOnly, Category="Mutable")
 	UCustomizableObjectInstance* MutableInstance;
 

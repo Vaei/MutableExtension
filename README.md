@@ -163,6 +163,10 @@ void AMyCharacter::OnMutableRuntimeUpdateFinished(const FMutablePendingRuntimeUp
 
 ## Changelog
 
+### 2.2.2
+* `OnMutableInstanceRuntimeUpdateCompleted` now passes out the update result
+* Added `UMutableFunctionLib::GetUpdateResultAsString` for debugging purposes
+
 ### 2.2.1
 * Fixed crash with dumped data
 

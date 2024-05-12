@@ -328,6 +328,21 @@ FString UMutableFunctionLib::GetSkeletalMeshStatusString(ESkeletalMeshStatus Sta
 	}
 }
 
+FString UMutableFunctionLib::GetUpdateResultAsString(EUpdateResult Result)
+{
+	switch (Result)
+	{
+	case EUpdateResult::Success: return "Success";
+	case EUpdateResult::Warning: return "Warning";
+	case EUpdateResult::Error: return "Error";
+	case EUpdateResult::ErrorOptimized: return "Error Optimized";
+	case EUpdateResult::ErrorReplaced: return "Error Replaced";
+	case EUpdateResult::ErrorDiscarded: return "Error Discarded";
+	case EUpdateResult::Error16BitBoneIndex: return "Error 16 Bit Bone Index";
+	default: return "Unknown";
+	}
+}
+
 FString UMutableFunctionLib::ParseRuntimeUpdateError_Simple(const EMutableExtensionRuntimeUpdateError& Error)
 {
 	switch(Error)

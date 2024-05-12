@@ -223,8 +223,10 @@ void UMutableExtensionComponent::OnMutableInstanceRuntimeUpdateCompleted(const F
 {
 	check(Result.Instance);
 
-	if (const FMutablePendingRuntimeUpdate* PendingUpdate = GetIncompletePendingRuntimeUpdate(Result.Instance))
+	if (FMutablePendingRuntimeUpdate* PendingUpdate = InstancesPendingRuntimeUpdate.Find(Result.Instance))
 	{
+		PendingUpdate->UpdateResult = Result.UpdateResult;
+
 		InstancesPendingRuntimeUpdate.Remove(Result.Instance);
 		CallOnComponentRuntimeUpdateCompleted(*PendingUpdate);
 	}

@@ -60,6 +60,8 @@ public:
 
 	static FString GetSkeletalMeshStatusString(ESkeletalMeshStatus Status);
 
+	static FString GetUpdateResultAsString(EUpdateResult Result);
+
 protected:
 	static FString ParseRuntimeUpdateError_Simple(const EMutableExtensionRuntimeUpdateError& Error);
 	static FString ParseRuntimeUpdateError_Verbose(const EMutableExtensionRuntimeUpdateError& Error);
